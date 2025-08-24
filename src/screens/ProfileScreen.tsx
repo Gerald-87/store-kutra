@@ -1,0 +1,405 @@
+import React from 'react';
+import {
+  View,
+  Text,
+  TouchableOpacity,
+  StyleSheet,
+  Image,
+  ScrollView,
+  Alert,
+} from 'react-native';
+import { useDispatch, useSelector } from 'react-redux';
+import { useNavigation } from '@react-navigation/native';
+import { Ionicons } from '@expo/vector-icons';
+import { AppDispatch, RootState } from '../store';
+import { logoutUser } from '../store/slices/authSlice';
+import { ProfileStackParamList } from '../navigation/AppNavigator';
+import { StackNavigationProp } from '@react-navigation/stack';
+import ProfileAuthScreen from './ProfileAuthScreen';
+
+type ProfileScreenNavigationProp = StackNavigationProp<ProfileStackParamList, 'ProfileMain'>;
+
+const ProfileScreen: React.FC = () => {
+  const dispatch = useDispatch<AppDispatch>();
+  const navigation = useNavigation<ProfileScreenNavigationProp>();
+  const auth = useSelector((state: RootState) => state.auth) as any;
+  const cart = useSelector((state: RootState) => state.cart) as any;
+  
+  const user = auth?.user;
+  const totalItems = cart?.totalItems || 0;
+
+  // Show login/register screen if user is not authenticated
+  if (!user) {
+    return <ProfileAuthScreen />;
+  }
+
+  const handleLogout = () => {
+    Alert.alert(
+      'Logout',
+      'Are you sure you want to logout?',
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Logout',
+          style: 'destructive',
+          onPress: () => dispatch(logoutUser()),
+        },
+      ]
+    );
+  };
+
+  const menuItems = [
+    {
+      icon: 'heart-outline',
+      title: 'Favorites',
+      subtitle: 'Your saved items',
+      onPress: () => navigation.navigate('Favorites'),
+      color: '#8B4513',
+    },
+    {
+      icon: 'receipt-outline',
+      title: 'My Orders',
+      subtitle: 'Track your purchases',
+      onPress: () => navigation.navigate('Orders'),
+      color: '#8B4513',
+    },
+    {
+      icon: 'cart-outline',
+      title: 'Shopping Cart',
+      subtitle: `${totalItems} items`,
+      onPress: () => navigation.navigate('Cart'),
+      color: '#8B4513',
+    },
+    {
+      icon: 'location-outline',
+      title: 'Addresses',
+      subtitle: 'Manage delivery addresses',
+      onPress: () => {/* Navigate to addresses */},
+      color: '#8B4513',
+    },
+    {
+      icon: 'card-outline',
+      title: 'Payment Methods',
+      subtitle: 'Manage payment options',
+      onPress: () => {/* Navigate to payment methods */},
+      color: '#8B4513',
+    },
+    {
+      icon: 'notifications-outline',
+      title: 'Notifications',
+      subtitle: 'Notification preferences',
+      onPress: () => {/* Navigate to notifications */},
+      color: '#8B4513',
+    },
+    {
+      icon: 'help-circle-outline',
+      title: 'Help & Support',
+      subtitle: 'Get help and contact us',
+      onPress: () => {/* Navigate to support */},
+      color: '#8B4513',
+    },
+    {
+      icon: 'settings-outline',
+      title: 'Settings',
+      subtitle: 'App preferences',
+      onPress: () => {/* Navigate to settings */},
+      color: '#8B4513',
+    },
+  ];
+
+  return (
+    <ScrollView style={styles.container}>
+      {/* Profile Header */}
+      <View style={styles.profileHeader}>
+        <View style={styles.avatarContainer}>
+          <Image
+            source={{
+              uri: user.avatarBase64
+                ? `data:image/jpeg;base64,${user.avatarBase64}`
+                : user.avatarUrl || 'https://placehold.co/100x100.png?text=User'
+            }}
+            style={styles.avatar}
+          />
+          <TouchableOpacity style={styles.editAvatarButton}>
+            <Ionicons name="camera" size={16} color="white" />
+          </TouchableOpacity>
+        </View>
+        
+        <View style={styles.userInfo}>
+          <Text style={styles.userName}>{user.name}</Text>
+          <Text style={styles.userEmail}>{user.email}</Text>
+          {user.campus && (
+            <Text style={styles.userCampus}>{user.campus}</Text>
+          )}
+          <Text style={styles.memberSince}>
+            Member since {new Date(user.joinedDate).toLocaleDateString()}
+          </Text>
+        </View>
+        
+        <TouchableOpacity style={styles.editProfileButton}>
+          <Ionicons name="create-outline" size={20} color="#8B4513" />
+          <Text style={styles.editProfileText}>Edit</Text>
+        </TouchableOpacity>
+      </View>
+
+      {/* Quick Stats */}
+      <View style={styles.statsContainer}>
+        <View style={styles.statItem}>
+          <Text style={styles.statValue}>0</Text>
+          <Text style={styles.statLabel}>Orders</Text>
+        </View>
+        <View style={styles.statDivider} />
+        <View style={styles.statItem}>
+          <Text style={styles.statValue}>0</Text>
+          <Text style={styles.statLabel}>Favorites</Text>
+        </View>
+        <View style={styles.statDivider} />
+        <View style={styles.statItem}>
+          <Text style={styles.statValue}>{totalItems}</Text>
+          <Text style={styles.statLabel}>In Cart</Text>
+        </View>
+      </View>
+
+      {/* Menu Items */}
+      <View style={styles.menuContainer}>
+        {menuItems.map((item, index) => (
+          <TouchableOpacity
+            key={index}
+            style={styles.menuItem}
+            onPress={item.onPress}
+          >
+            <View style={styles.menuItemLeft}>
+              <View style={styles.menuIconContainer}>
+                <Ionicons name={item.icon as any} size={24} color={item.color} />
+              </View>
+              <View style={styles.menuTextContainer}>
+                <Text style={styles.menuTitle}>{item.title}</Text>
+                <Text style={styles.menuSubtitle}>{item.subtitle}</Text>
+              </View>
+            </View>
+            <Ionicons name="chevron-forward" size={20} color="#8B7355" />
+          </TouchableOpacity>
+        ))}
+      </View>
+
+      {/* App Info */}
+      <View style={styles.appInfoContainer}>
+        <Text style={styles.appName}>KUTRA</Text>
+        <Text style={styles.appVersion}>Version 1.0.0</Text>
+        <Text style={styles.appDescription}>
+          Your campus marketplace for buying, selling, swapping, and renting
+        </Text>
+      </View>
+
+      {/* Logout Button */}
+      <View style={styles.logoutContainer}>
+        <TouchableOpacity style={styles.logoutButton} onPress={handleLogout}>
+          <Ionicons name="log-out-outline" size={20} color="#DC2626" />
+          <Text style={styles.logoutText}>Logout</Text>
+        </TouchableOpacity>
+      </View>
+    </ScrollView>
+  );
+};
+
+const styles = StyleSheet.create({
+  container: {
+    flex: 1,
+    backgroundColor: '#F7F3F0',
+  },
+  profileHeader: {
+    backgroundColor: '#FFFFFF',
+    paddingHorizontal: 20,
+    paddingVertical: 24,
+    flexDirection: 'row',
+    alignItems: 'center',
+    shadowColor: '#8B4513',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 3,
+  },
+  avatarContainer: {
+    position: 'relative',
+    marginRight: 16,
+  },
+  avatar: {
+    width: 80,
+    height: 80,
+    borderRadius: 40,
+  },
+  editAvatarButton: {
+    position: 'absolute',
+    bottom: 0,
+    right: 0,
+    backgroundColor: '#8B4513',
+    borderRadius: 12,
+    width: 24,
+    height: 24,
+    justifyContent: 'center',
+    alignItems: 'center',
+    borderWidth: 2,
+    borderColor: '#FFFFFF',
+  },
+  userInfo: {
+    flex: 1,
+  },
+  userName: {
+    fontSize: 20,
+    fontWeight: '700',
+    color: '#2D1810',
+    marginBottom: 4,
+  },
+  userEmail: {
+    fontSize: 14,
+    color: '#8B7355',
+    marginBottom: 2,
+  },
+  userCampus: {
+    fontSize: 14,
+    color: '#8B4513',
+    fontWeight: '500',
+    marginBottom: 4,
+  },
+  memberSince: {
+    fontSize: 12,
+    color: '#8B7355',
+  },
+  editProfileButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#F5F1ED',
+    borderRadius: 8,
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+  },
+  editProfileText: {
+    fontSize: 14,
+    color: '#8B4513',
+    fontWeight: '600',
+    marginLeft: 4,
+  },
+  statsContainer: {
+    backgroundColor: '#FFFFFF',
+    marginTop: 8,
+    flexDirection: 'row',
+    justifyContent: 'space-around',
+    paddingVertical: 20,
+    shadowColor: '#8B4513',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.05,
+    shadowRadius: 4,
+    elevation: 2,
+  },
+  statItem: {
+    alignItems: 'center',
+  },
+  statValue: {
+    fontSize: 24,
+    fontWeight: '700',
+    color: '#2D1810',
+    textAlign: 'center',
+    marginBottom: 4,
+  },
+  statLabel: {
+    fontSize: 12,
+    color: '#8B7355',
+    textAlign: 'center',
+    fontWeight: '500',
+  },
+  statDivider: {
+    width: 1,
+    backgroundColor: '#E8E2DD',
+    marginVertical: 8,
+  },
+  menuContainer: {
+    backgroundColor: '#FFFFFF',
+    marginTop: 8,
+    paddingVertical: 8,
+  },
+  menuItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: 20,
+    paddingVertical: 16,
+    borderBottomWidth: 1,
+    borderBottomColor: '#F5F1ED',
+  },
+  menuItemLeft: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    flex: 1,
+  },
+  menuIconContainer: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: '#F5F1ED',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginRight: 16,
+  },
+  menuTextContainer: {
+    flex: 1,
+  },
+  menuTitle: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#2D1810',
+    marginBottom: 2,
+  },
+  menuSubtitle: {
+    fontSize: 14,
+    color: '#8B7355',
+  },
+  appInfoContainer: {
+    backgroundColor: '#FFFFFF',
+    marginTop: 8,
+    paddingHorizontal: 20,
+    paddingVertical: 24,
+    alignItems: 'center',
+  },
+  appName: {
+    fontSize: 20,
+    fontWeight: '700',
+    color: '#2D1810',
+    marginBottom: 4,
+  },
+  appVersion: {
+    fontSize: 14,
+    color: '#8B7355',
+    marginBottom: 8,
+  },
+  appDescription: {
+    fontSize: 14,
+    color: '#8B7355',
+    textAlign: 'center',
+    lineHeight: 20,
+  },
+  logoutContainer: {
+    backgroundColor: '#FFFFFF',
+    marginTop: 8,
+    marginBottom: 20,
+    paddingHorizontal: 20,
+    paddingVertical: 16,
+  },
+  logoutButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: '#FEF2F2',
+    borderRadius: 12,
+    paddingVertical: 16,
+    borderWidth: 1,
+    borderColor: '#FECACA',
+  },
+  logoutText: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#DC2626',
+    marginLeft: 8,
+  },
+});
+
+export default ProfileScreen;
