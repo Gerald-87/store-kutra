@@ -12,6 +12,7 @@ import {
   SafeAreaView,
   StatusBar,
   Dimensions,
+  TextInput,
 } from 'react-native';
 import { useDispatch, useSelector } from 'react-redux';
 import { useNavigation, useRoute, RouteProp } from '@react-navigation/native';
@@ -19,9 +20,13 @@ import { Ionicons } from '@expo/vector-icons';
 import { AppDispatch, RootState } from '../store';
 import { fetchStoreListings } from '../store/slices/listingsSlice';
 import { addToCart } from '../store/slices/cartSlice';
-import { Store, Listing } from '../types';
+import { Store, Listing, ListingCategory } from '../types';
 import { StackNavigationProp } from '@react-navigation/stack';
 import { StoreStackParamList } from '../navigation/AppNavigator';
+import { RatingDisplay } from '../components/Rating';
+import RatingModal from '../components/RatingModal';
+import { collection, addDoc, doc, updateDoc, increment } from 'firebase/firestore';
+import { db } from '../config/firebase';
 
 type StoreDetailScreenNavigationProp = StackNavigationProp<StoreStackParamList, 'StoreDetail'>;
 type StoreDetailScreenRouteProp = RouteProp<StoreStackParamList, 'StoreDetail'>;
@@ -31,6 +36,11 @@ const { width } = Dimensions.get('window');
 const StoreDetailScreen: React.FC = () => {
   const [refreshing, setRefreshing] = useState(false);
   const [products, setProducts] = useState<Listing[]>([]);
+  const [filteredProducts, setFilteredProducts] = useState<Listing[]>([]);
+  const [searchQuery, setSearchQuery] = useState('');
+  const [selectedCategory, setSelectedCategory] = useState<ListingCategory | 'All'>('All');
+  const [showFilters, setShowFilters] = useState(false);
+  const [showRatingModal, setShowRatingModal] = useState(false);
 
   const dispatch = useDispatch<AppDispatch>();
   const navigation = useNavigation<StoreDetailScreenNavigationProp>();
@@ -68,6 +78,56 @@ const StoreDetailScreen: React.FC = () => {
     }
   }, [storeListings, filteredStoreListings, store.id]);
 
+  // Filter products based on search and category
+  useEffect(() => {
+    let filtered = products;
+
+    // Filter by search query
+    if (searchQuery.trim()) {
+      const query = searchQuery.toLowerCase();
+      filtered = filtered.filter(product => 
+        product.title.toLowerCase().includes(query) ||
+        product.description.toLowerCase().includes(query) ||
+        product.category.toLowerCase().includes(query)
+      );
+    }
+
+    // Filter by category
+    if (selectedCategory !== 'All') {
+      filtered = filtered.filter(product => product.category === selectedCategory);
+    }
+
+    setFilteredProducts(filtered);
+  }, [products, searchQuery, selectedCategory]);
+
+  const initializeChat = async () => {
+    if (!isAuthenticated || !user) {
+      Alert.alert('Login Required', 'Please login to start a chat');
+      return;
+    }
+
+    if (!store.ownerId || store.ownerId === user.uid) {
+      Alert.alert('Error', 'Cannot chat with yourself');
+      return;
+    }
+
+    try {
+      // Create conversation ID based on user IDs
+      const conversationId = [user.uid, store.ownerId].sort().join('_');
+      
+      // Navigate to conversation screen
+      navigation.navigate('Conversation' as any, {
+        conversationId,
+        otherUserId: store.ownerId,
+        otherUserName: store.name || 'Store Owner',
+        listingId: undefined, // This is a store chat, not product-specific
+      });
+    } catch (error) {
+      console.error('Error initializing chat:', error);
+      Alert.alert('Error', 'Failed to start chat. Please try again.');
+    }
+  };
+
   const loadStoreProducts = async () => {
     try {
       console.log('Loading products for store:', store.id, 'ownerId:', store.ownerId);
@@ -98,6 +158,11 @@ const StoreDetailScreen: React.FC = () => {
       productId: product.id, 
       listingId: product.id 
     });
+  };
+
+  const handleCartPress = () => {
+    // Navigate directly to cart when cart icon is clicked
+    (navigation as any).navigate('Cart');
   };
 
   const handleCheckout = () => {
@@ -139,6 +204,67 @@ const StoreDetailScreen: React.FC = () => {
     // Navigate to checkout with delivery method
     console.log('Navigate to checkout with:', deliveryMethod);
   };
+
+  const handleRateStore = async (rating: number, review?: string) => {
+    if (!isAuthenticated || !user) {
+      Alert.alert('Login Required', 'Please login to rate this store.');
+      return;
+    }
+
+    try {
+      // Add rating to Firestore
+      await addDoc(collection(db, 'storeRatings'), {
+        storeId: store.id,
+        userId: user.uid,
+        userName: user.name,
+        rating,
+        review: review || null,
+        createdAt: new Date().toISOString(),
+      });
+
+      // Update store's rating statistics
+      const storeRef = doc(db, 'stores', store.id);
+      await updateDoc(storeRef, {
+        totalRatingSum: increment(rating),
+        numberOfRatings: increment(1),
+        averageRating: (store.totalRatingSum + rating) / (store.numberOfRatings + 1),
+      });
+
+      console.log('Store rating submitted successfully');
+    } catch (error) {
+      console.error('Error submitting store rating:', error);
+      throw error;
+    }
+  };
+
+  // Get available categories from products
+  const getAvailableCategories = () => {
+    const categories = Array.from(new Set(products.map(product => product.category)));
+    return ['All', ...categories.sort()];
+  };
+
+  const clearFilters = () => {
+    setSearchQuery('');
+    setSelectedCategory('All');
+  };
+
+  const renderCategoryFilter = (category: string) => (
+    <TouchableOpacity
+      key={category}
+      style={[
+        styles.categoryButton,
+        selectedCategory === category && styles.selectedCategoryButton
+      ]}
+      onPress={() => setSelectedCategory(category as ListingCategory | 'All')}
+    >
+      <Text style={[
+        styles.categoryButtonText,
+        selectedCategory === category && styles.selectedCategoryButtonText
+      ]}>
+        {category}
+      </Text>
+    </TouchableOpacity>
+  );
 
   const renderStars = (rating: number) => {
     const stars = [];
@@ -231,7 +357,7 @@ const StoreDetailScreen: React.FC = () => {
 
         <TouchableOpacity 
           style={styles.cartButton}
-          onPress={handleCheckout}
+          onPress={handleCartPress}
         >
           <View style={styles.cartIconContainer}>
             <Ionicons name="bag-outline" size={24} color="#2D1810" />
@@ -264,6 +390,38 @@ const StoreDetailScreen: React.FC = () => {
               {store.description}
             </Text>
             
+            {/* Store Rating Display and Button */}
+            <View style={styles.ratingSection}>
+              <RatingDisplay 
+                rating={store.averageRating || 0} 
+                size={18} 
+                showNumber={true} 
+              />
+              {store.numberOfRatings && store.numberOfRatings > 0 && (
+                <Text style={styles.ratingsCount}>
+                  ({store.numberOfRatings} review{store.numberOfRatings !== 1 ? 's' : ''})
+                </Text>
+              )}
+              <View style={styles.storeActionButtons}>
+                <TouchableOpacity 
+                  style={styles.chatStoreButton}
+                  onPress={initializeChat}
+                  activeOpacity={0.8}
+                >
+                  <Ionicons name="chatbubble-outline" size={16} color="#8B4513" />
+                  <Text style={styles.chatStoreButtonText}>Chat</Text>
+                </TouchableOpacity>
+                <TouchableOpacity 
+                  style={styles.rateButton}
+                  onPress={() => setShowRatingModal(true)}
+                  activeOpacity={0.8}
+                >
+                  <Ionicons name="star-outline" size={16} color="#8B4513" />
+                  <Text style={styles.rateButtonText}>Rate Store</Text>
+                </TouchableOpacity>
+              </View>
+            </View>
+            
             <View style={styles.storeDetails}>
               <View style={styles.detailItem}>
                 <Ionicons name="time-outline" size={16} color="#8B7355" />
@@ -280,15 +438,70 @@ const StoreDetailScreen: React.FC = () => {
           </View>
         </View>
 
+        {/* Search and Filters Section */}
+        <View style={styles.searchSection}>
+          {/* Search Bar */}
+          <View style={styles.searchContainer}>
+            <View style={styles.searchBar}>
+              <Ionicons name="search-outline" size={20} color="#8B7355" />
+              <TextInput
+                style={styles.searchInput}
+                placeholder="Search products..."
+                value={searchQuery}
+                onChangeText={setSearchQuery}
+                placeholderTextColor="#8B7355"
+              />
+              {searchQuery.length > 0 && (
+                <TouchableOpacity onPress={() => setSearchQuery('')}>
+                  <Ionicons name="close-circle" size={20} color="#8B7355" />
+                </TouchableOpacity>
+              )}
+            </View>
+            <TouchableOpacity 
+              style={styles.filterButton}
+              onPress={() => setShowFilters(!showFilters)}
+            >
+              <Ionicons name="options-outline" size={20} color="#8B4513" />
+            </TouchableOpacity>
+          </View>
+
+          {/* Category Filters */}
+          {showFilters && (
+            <View style={styles.filtersContainer}>
+              <View style={styles.filtersHeader}>
+                <Text style={styles.filtersTitle}>Filter by Category</Text>
+                <TouchableOpacity onPress={clearFilters}>
+                  <Text style={styles.clearFiltersText}>Clear</Text>
+                </TouchableOpacity>
+              </View>
+              <ScrollView horizontal showsHorizontalScrollIndicator={false}>
+                <View style={styles.categoriesContainer}>
+                  {getAvailableCategories().map(renderCategoryFilter)}
+                </View>
+              </ScrollView>
+            </View>
+          )}
+
+          {/* Results Summary */}
+          <View style={styles.resultsContainer}>
+            <Text style={styles.resultsText}>
+              {filteredProducts.length} of {products.length} products
+              {searchQuery.trim() && ` for "${searchQuery}"`}
+              {selectedCategory !== 'All' && ` in ${selectedCategory}`}
+            </Text>
+          </View>
+        </View>
+
         {/* Products Section */}
         <View style={styles.productsSection}>
           <View style={styles.sectionHeader}>
-            <Text style={styles.sectionTitle}>Products ({products.length})</Text>
+            <Text style={styles.sectionTitle}>Products ({filteredProducts.length})</Text>
           </View>
           
-          {products.length > 0 ? (
+          {filteredProducts.length > 0 ? (
             <FlatList
-              data={products}
+              key="store-products-grid" // Add key to force re-render when numColumns changes
+              data={filteredProducts}
               renderItem={renderProductItem}
               keyExtractor={(item) => item.id}
               numColumns={2}
@@ -304,6 +517,20 @@ const StoreDetailScreen: React.FC = () => {
                 />
               }
             />
+          ) : products.length > 0 ? (
+            <View style={styles.emptyProducts}>
+              <Ionicons name="search-outline" size={48} color="#D2B48C" />
+              <Text style={styles.emptyProductsTitle}>No Results Found</Text>
+              <Text style={styles.emptyProductsText}>
+                {searchQuery.trim() 
+                  ? `No products found for "${searchQuery}"${selectedCategory !== 'All' ? ` in ${selectedCategory}` : ''}`
+                  : `No products found in ${selectedCategory}`
+                }
+              </Text>
+              <TouchableOpacity style={styles.clearFiltersButton} onPress={clearFilters}>
+                <Text style={styles.clearFiltersButtonText}>Clear Filters</Text>
+              </TouchableOpacity>
+            </View>
           ) : (
             <View style={styles.emptyProducts}>
               <Ionicons name="cube-outline" size={48} color="#D2B48C" />
@@ -315,6 +542,15 @@ const StoreDetailScreen: React.FC = () => {
           )}
         </View>
       </ScrollView>
+      
+      {/* Rating Modal */}
+      <RatingModal
+        visible={showRatingModal}
+        onClose={() => setShowRatingModal(false)}
+        onSubmit={handleRateStore}
+        type="store"
+        itemName={store.name}
+      />
     </SafeAreaView>
   );
 };
@@ -388,6 +624,96 @@ const styles = StyleSheet.create({
   content: {
     flex: 1,
   },
+  searchSection: {
+    backgroundColor: '#FFFFFF',
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    marginBottom: 8,
+  },
+  searchContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 8,
+  },
+  searchBar: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#F7F3F0',
+    borderRadius: 12,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    borderWidth: 1,
+    borderColor: '#E8E2DD',
+    marginRight: 8,
+  },
+  searchInput: {
+    flex: 1,
+    marginLeft: 8,
+    fontSize: 16,
+    color: '#2D1810',
+  },
+  filterButton: {
+    backgroundColor: '#F5F1ED',
+    borderRadius: 12,
+    padding: 12,
+    borderWidth: 1,
+    borderColor: '#E8E2DD',
+  },
+  filtersContainer: {
+    marginTop: 8,
+    paddingVertical: 8,
+  },
+  filtersHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 12,
+  },
+  filtersTitle: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#2D1810',
+  },
+  clearFiltersText: {
+    fontSize: 14,
+    color: '#8B4513',
+    fontWeight: '600',
+  },
+  categoriesContainer: {
+    flexDirection: 'row',
+    paddingVertical: 4,
+  },
+  categoryButton: {
+    backgroundColor: '#F7F3F0',
+    borderRadius: 20,
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+    marginRight: 8,
+    borderWidth: 1,
+    borderColor: '#E8E2DD',
+  },
+  selectedCategoryButton: {
+    backgroundColor: '#8B4513',
+    borderColor: '#8B4513',
+  },
+  categoryButtonText: {
+    fontSize: 14,
+    color: '#2D1810',
+    fontWeight: '500',
+  },
+  selectedCategoryButtonText: {
+    color: '#FFFFFF',
+    fontWeight: '600',
+  },
+  resultsContainer: {
+    marginTop: 8,
+  },
+  resultsText: {
+    fontSize: 14,
+    color: '#8B7355',
+    fontWeight: '500',
+  },
   storeInfoSection: {
     backgroundColor: '#FFFFFF',
     padding: 16,
@@ -413,6 +739,57 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     lineHeight: 20,
     marginBottom: 16,
+  },
+  ratingSection: {
+    alignItems: 'center',
+    marginBottom: 16,
+    paddingVertical: 12,
+    backgroundColor: '#F9F6F3',
+    borderRadius: 12,
+    paddingHorizontal: 16,
+  },
+  ratingsCount: {
+    fontSize: 12,
+    color: '#6B7280',
+    marginTop: 4,
+    marginBottom: 8,
+  },
+  storeActionButtons: {
+    flexDirection: 'row',
+    gap: 12,
+    marginTop: 8,
+  },
+  chatStoreButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#FFFFFF',
+    borderRadius: 8,
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderWidth: 1,
+    borderColor: '#8B4513',
+  },
+  chatStoreButtonText: {
+    fontSize: 14,
+    color: '#8B4513',
+    fontWeight: '600',
+    marginLeft: 4,
+  },
+  rateButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#FFFFFF',
+    borderRadius: 8,
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderWidth: 1,
+    borderColor: '#8B4513',
+  },
+  rateButtonText: {
+    fontSize: 14,
+    color: '#8B4513',
+    fontWeight: '600',
+    marginLeft: 4,
   },
   storeDetails: {
     flexDirection: 'row',
@@ -526,6 +903,18 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: '#8B7355',
     textAlign: 'center',
+  },
+  clearFiltersButton: {
+    backgroundColor: '#8B4513',
+    borderRadius: 8,
+    paddingHorizontal: 20,
+    paddingVertical: 10,
+    marginTop: 16,
+  },
+  clearFiltersButtonText: {
+    color: '#FFFFFF',
+    fontSize: 14,
+    fontWeight: '600',
   },
 });
 

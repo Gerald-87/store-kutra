@@ -5,11 +5,13 @@ import { createStackNavigator } from '@react-navigation/stack';
 import { createDrawerNavigator } from '@react-navigation/drawer';
 import { useSelector } from 'react-redux';
 import { Ionicons } from '@expo/vector-icons';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { RootState } from '../store';
 
 // Screen imports (we'll create these)
 import HomeScreen from '../screens/HomeScreen';
 import StoreListScreen from '../screens/StoreListScreen';
+import StoreDetailScreen from '../screens/StoreDetailScreen';
 import ProductDetailScreen from '../screens/ProductDetailScreen';
 import CartScreen from '../screens/CartScreen';
 import CheckoutScreen from '../screens/CheckoutScreen';
@@ -24,7 +26,24 @@ import ForgotPasswordScreen from '../screens/auth/ForgotPasswordScreen';
 import FavoritesScreen from '../screens/FavoritesScreen';
 import OrdersScreen from '../screens/OrdersScreen';
 import SearchScreen from '../screens/SearchScreen';
-import StoreDetailScreen from '../screens/StoreDetailScreen';
+import FeaturedProductsScreen from '../screens/FeaturedProductsScreen';
+import StoreDashboardScreen from '../screens/StoreDashboardScreen';
+import StoreManagementScreen from '../screens/StoreManagementScreen';
+import ProductManagementScreen from '../screens/ProductManagementScreen';
+import OrderManagementScreen from '../screens/OrderManagementScreen';
+import OrderDetailScreen from '../screens/OrderDetailScreen';
+import AddProductScreen from '../screens/AddProductScreen';
+import AddRentalSwapListingScreen from '../screens/AddRentalSwapListingScreen';
+import EditProductScreen from '../screens/EditProductScreen';
+import StoreAnalyticsScreen from '../screens/StoreAnalyticsScreen';
+import NotificationScreen from '../screens/NotificationScreen';
+import AddressScreen from '../screens/AddressScreen';
+import SettingsScreen from '../screens/SettingsScreen';
+import HelpScreen from '../screens/HelpScreen';
+import MyItemsScreen from '../screens/MyItemsScreen';
+import MyBookingsScreen from '../screens/MyBookingsScreen';
+import MyRequestsScreen from '../screens/MyRequestsScreen';
+import { UserRole } from '../types';
 
 export type RootStackParamList = {
   Auth: undefined;
@@ -39,6 +58,16 @@ export type RootStackParamList = {
     listingId?: string;
   };
   Search: { category?: string; query?: string };
+  StoreDashboard: undefined;
+  StoreManagement: undefined;
+  ProductManagement: undefined;
+  OrderManagement: undefined;
+  AddProduct: undefined;
+  EditProduct: { product: any };
+  AddRentalSwapListing: { listingType: 'rent' | 'swap' };
+  OrderDetail: { order: any };
+  StoreAnalytics: undefined;
+  Notifications: undefined;
 };
 
 export type AuthStackParamList = {
@@ -56,11 +85,39 @@ export type MainTabParamList = {
   Profile: undefined;
 };
 
+export type StoreOwnerTabParamList = {
+  Dashboard: undefined;
+  Products: undefined;
+  Orders: undefined;
+  Analytics: undefined;
+  Chat: undefined;
+  Profile: undefined;
+};
+
+export type StoreDashboardStackParamList = {
+  DashboardMain: undefined;
+  StoreManagement: undefined;
+  AddProduct: undefined;
+  EditProduct: { product: any };
+};
+
+export type StoreProductsStackParamList = {
+  ProductsMain: undefined;
+  AddProduct: undefined;
+  EditProduct: { product: any };
+};
+
+export type StoreOrdersStackParamList = {
+  OrdersMain: undefined;
+  OrderDetail: { order: any };
+};
+
 export type HomeStackParamList = {
   HomeMain: undefined;
   Search: { category?: string; query?: string };
   ProductDetail: { productId: string; listingId?: string };
   StoreDetail: { store: any };
+  FeaturedProducts: undefined;
 };
 
 export type StoreStackParamList = {
@@ -74,11 +131,21 @@ export type ProfileStackParamList = {
   Favorites: undefined;
   Orders: undefined;
   Cart: undefined;
+  Address: undefined;
+  Settings: undefined;
+  Help: undefined;
+  MyItems: undefined;
+  MyBookings: undefined;
+  MyRequests: undefined;
 };
 
 const Stack = createStackNavigator<RootStackParamList>();
 const AuthStack = createStackNavigator<AuthStackParamList>();
 const Tab = createBottomTabNavigator<MainTabParamList>();
+const StoreOwnerTab = createBottomTabNavigator<StoreOwnerTabParamList>();
+const StoreDashboardStack = createStackNavigator<StoreDashboardStackParamList>();
+const StoreProductsStack = createStackNavigator<StoreProductsStackParamList>();
+const StoreOrdersStack = createStackNavigator<StoreOrdersStackParamList>();
 const HomeStack = createStackNavigator<HomeStackParamList>();
 const StoreStack = createStackNavigator<StoreStackParamList>();
 const ProfileStack = createStackNavigator<ProfileStackParamList>();
@@ -116,6 +183,11 @@ function HomeNavigator() {
       <HomeStack.Screen 
         name="StoreDetail" 
         component={StoreDetailScreen} 
+        options={{ headerShown: false }}
+      />
+      <HomeStack.Screen 
+        name="FeaturedProducts" 
+        component={FeaturedProductsScreen} 
         options={{ headerShown: false }}
       />
     </HomeStack.Navigator>
@@ -162,20 +234,189 @@ function ProfileNavigator() {
       <ProfileStack.Screen 
         name="Orders" 
         component={OrdersScreen} 
-        options={{ title: 'My Orders' }}
+        options={{ headerShown: false }}
       />
       <ProfileStack.Screen 
         name="Cart" 
         component={CartScreen} 
         options={{ title: 'Shopping Cart' }}
       />
+      <ProfileStack.Screen 
+        name="Address" 
+        component={AddressScreen} 
+        options={{ headerShown: false }}
+      />
+      <ProfileStack.Screen 
+        name="Settings" 
+        component={SettingsScreen} 
+        options={{ headerShown: false }}
+      />
+      <ProfileStack.Screen 
+        name="Help" 
+        component={HelpScreen} 
+        options={{ headerShown: false }}
+      />
+      <ProfileStack.Screen 
+        name="MyItems" 
+        component={MyItemsScreen} 
+        options={{ headerShown: false }}
+      />
+      <ProfileStack.Screen 
+        name="MyBookings" 
+        component={MyBookingsScreen} 
+        options={{ headerShown: false }}
+      />
+      <ProfileStack.Screen 
+        name="MyRequests" 
+        component={MyRequestsScreen} 
+        options={{ headerShown: false }}
+      />
     </ProfileStack.Navigator>
+  );
+}
+
+// Store Dashboard Stack Navigator
+function StoreDashboardNavigator() {
+  return (
+    <StoreDashboardStack.Navigator>
+      <StoreDashboardStack.Screen 
+        name="DashboardMain" 
+        component={StoreDashboardScreen} 
+        options={{ headerShown: false }}
+      />
+      <StoreDashboardStack.Screen 
+        name="StoreManagement" 
+        component={StoreManagementScreen} 
+        options={{ headerShown: false }}
+      />
+      <StoreDashboardStack.Screen 
+        name="AddProduct" 
+        component={AddProductScreen} 
+        options={{ headerShown: false }}
+      />
+      <StoreDashboardStack.Screen 
+        name="EditProduct" 
+        component={EditProductScreen} 
+        options={{ headerShown: false }}
+      />
+    </StoreDashboardStack.Navigator>
+  );
+}
+
+// Store Products Stack Navigator
+function StoreProductsNavigator() {
+  return (
+    <StoreProductsStack.Navigator>
+      <StoreProductsStack.Screen 
+        name="ProductsMain" 
+        component={ProductManagementScreen} 
+        options={{ headerShown: false }}
+      />
+      <StoreProductsStack.Screen 
+        name="AddProduct" 
+        component={AddProductScreen} 
+        options={{ headerShown: false }}
+      />
+      <StoreProductsStack.Screen 
+        name="EditProduct" 
+        component={EditProductScreen} 
+        options={{ headerShown: false }}
+      />
+    </StoreProductsStack.Navigator>
+  );
+}
+
+// Store Orders Stack Navigator
+function StoreOrdersNavigator() {
+  return (
+    <StoreOrdersStack.Navigator>
+      <StoreOrdersStack.Screen 
+        name="OrdersMain" 
+        component={OrderManagementScreen} 
+        options={{ headerShown: false }}
+      />
+      <StoreOrdersStack.Screen 
+        name="OrderDetail" 
+        component={OrderDetailScreen} 
+        options={{ headerShown: false }}
+      />
+    </StoreOrdersStack.Navigator>
+  );
+}
+
+// Store Owner Tab Navigator
+function StoreOwnerNavigator() {
+  const { isAuthenticated } = useSelector((state: RootState) => state.auth);
+  const insets = useSafeAreaInsets();
+
+  return (
+    <StoreOwnerTab.Navigator
+      initialRouteName="Dashboard"
+      screenOptions={({ route }) => ({
+        tabBarIcon: ({ focused, color, size }) => {
+          let iconName: keyof typeof Ionicons.glyphMap;
+
+          switch (route.name) {
+            case 'Dashboard':
+              iconName = focused ? 'analytics' : 'analytics-outline';
+              break;
+            case 'Products':
+              iconName = focused ? 'cube' : 'cube-outline';
+              break;
+            case 'Orders':
+              iconName = focused ? 'receipt' : 'receipt-outline';
+              break;
+            case 'Analytics':
+              iconName = focused ? 'bar-chart' : 'bar-chart-outline';
+              break;
+            case 'Chat':
+              iconName = focused ? 'chatbubbles' : 'chatbubbles-outline';
+              break;
+            case 'Profile':
+              iconName = focused ? 'person' : 'person-outline';
+              break;
+            default:
+              iconName = 'help-outline';
+          }
+
+          return <Ionicons name={iconName} size={size} color={color} />;
+        },
+        tabBarActiveTintColor: '#8B4513',
+        tabBarInactiveTintColor: '#8B7355',
+        tabBarStyle: {
+          backgroundColor: '#FFFFFF',
+          borderTopColor: '#E8E2DD',
+          paddingBottom: Math.max(insets.bottom, 8),
+          height: 64 + Math.max(insets.bottom, 8),
+          paddingTop: 4,
+        },
+        headerShown: false,
+      })}
+    >
+      <StoreOwnerTab.Screen name="Dashboard" component={StoreDashboardNavigator} />
+      <StoreOwnerTab.Screen name="Products" component={StoreProductsNavigator} />
+      <StoreOwnerTab.Screen name="Orders" component={StoreOrdersNavigator} />
+      <StoreOwnerTab.Screen name="Analytics" component={StoreAnalyticsScreen} />
+      {isAuthenticated && (
+        <StoreOwnerTab.Screen name="Chat" component={ChatScreen} />
+      )}
+      <StoreOwnerTab.Screen name="Profile" component={ProfileNavigator} />
+    </StoreOwnerTab.Navigator>
   );
 }
 
 // Main Tab Navigator
 function MainNavigator() {
-  const { isAuthenticated } = useSelector((state: RootState) => state.auth);
+  const { isAuthenticated, user } = useSelector((state: RootState) => state.auth) as any;
+  const insets = useSafeAreaInsets();
+  
+  // Check if user is a store owner
+  const isStoreOwner = user?.role === UserRole.STORE_OWNER;
+  
+  // If user is a store owner, show store owner navigation
+  if (isStoreOwner) {
+    return <StoreOwnerNavigator />;
+  }
 
   return (
     <Tab.Navigator
@@ -213,6 +454,9 @@ function MainNavigator() {
         tabBarStyle: {
           backgroundColor: '#FFFFFF',
           borderTopColor: '#E8E2DD',
+          paddingBottom: Math.max(insets.bottom, 8),
+          height: 64 + Math.max(insets.bottom, 8),
+          paddingTop: 4,
         },
         headerShown: false,
       })}
@@ -260,6 +504,51 @@ export default function AppNavigator() {
           name="Search" 
           component={SearchScreen} 
           options={{ headerShown: true, title: 'Search' }}
+        />
+        <Stack.Screen 
+          name="StoreDashboard" 
+          component={StoreDashboardScreen} 
+          options={{ headerShown: false }}
+        />
+        <Stack.Screen 
+          name="StoreManagement" 
+          component={StoreManagementScreen} 
+          options={{ headerShown: false }}
+        />
+        <Stack.Screen 
+          name="ProductManagement" 
+          component={ProductManagementScreen} 
+          options={{ headerShown: false }}
+        />
+        <Stack.Screen 
+          name="OrderManagement" 
+          component={OrderManagementScreen} 
+          options={{ headerShown: false }}
+        />
+        <Stack.Screen 
+          name="AddProduct" 
+          component={AddProductScreen} 
+          options={{ headerShown: false }}
+        />
+        <Stack.Screen 
+          name="AddRentalSwapListing" 
+          component={AddRentalSwapListingScreen} 
+          options={{ headerShown: false }}
+        />
+        <Stack.Screen 
+          name="EditProduct" 
+          component={EditProductScreen} 
+          options={{ headerShown: false }}
+        />
+        <Stack.Screen 
+          name="OrderDetail" 
+          component={OrderDetailScreen} 
+          options={{ headerShown: false }}
+        />
+        <Stack.Screen 
+          name="Notifications" 
+          component={NotificationScreen} 
+          options={{ headerShown: false }}
         />
       </Stack.Navigator>
     </NavigationContainer>

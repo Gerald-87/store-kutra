@@ -27,6 +27,9 @@ import { StackNavigationProp } from '@react-navigation/stack';
 import { HomeStackParamList } from '../navigation/AppNavigator';
 import HeroCarousel from '../components/HeroCarousel';
 import StoreCard from '../components/StoreCard';
+import LocationService, { LocationData } from '../services/LocationService';
+import NotificationService, { NotificationData } from '../services/NotificationService';
+import NotificationPopup from '../components/NotificationPopup';
 
 type HomeScreenNavigationProp = StackNavigationProp<HomeStackParamList, 'HomeMain'>;
 
@@ -35,6 +38,13 @@ const { width } = Dimensions.get('window');
 const HomeScreen: React.FC = () => {
   const [searchQuery, setSearchQuery] = useState('');
   const [refreshing, setRefreshing] = useState(false);
+  const [currentLocation, setCurrentLocation] = useState<LocationData | null>(null);
+  const [locationLoading, setLocationLoading] = useState(false);
+  const [unreadNotifications, setUnreadNotifications] = useState(0);
+  const [showNotificationPopup, setShowNotificationPopup] = useState(false);
+  const [selectedCategory, setSelectedCategory] = useState<ListingCategory | null>(null);
+  const [filteredItems, setFilteredItems] = useState<Listing[]>([]);
+  const [filteredStores, setFilteredStores] = useState<Store[]>([]);
 
   const dispatch = useDispatch<AppDispatch>();
   const navigation = useNavigation<HomeScreenNavigationProp>();
@@ -57,7 +67,77 @@ const HomeScreen: React.FC = () => {
 
   useEffect(() => {
     loadData();
-  }, []);
+    loadLocation();
+    
+    // Subscribe to notifications for real-time updates
+    if (user?.uid) {
+      const notificationService = NotificationService.getInstance();
+      
+      // Subscribe to notifications and maintain unread count
+      const unsubscribe = notificationService.subscribeToNotifications(
+        user.uid,
+        (notifications: NotificationData[]) => {
+          // Only count notifications that are explicitly not read (read === false)
+          const unread = notifications.filter(n => n.read === false).length;
+          console.log('HomeScreen: Notification update - total:', notifications.length, 'unread:', unread);
+          setUnreadNotifications(unread);
+        }
+      );
+
+      return () => {
+        console.log('HomeScreen: Unsubscribing from notifications');
+        unsubscribe();
+      };
+    }
+  }, [user?.uid]);
+
+  // Filter content based on selected category
+  useEffect(() => {
+    if (selectedCategory) {
+      // Filter featured items by category
+      const categoryFilteredItems = featuredItems.filter((item: Listing) => 
+        item.category === selectedCategory
+      );
+      setFilteredItems(categoryFilteredItems);
+      
+      // Filter stores that have products in this category
+      const categoryFilteredStores = featuredStores.filter((store: Store) => 
+        store.categories?.includes(selectedCategory)
+      );
+      setFilteredStores(categoryFilteredStores);
+    } else {
+      setFilteredItems(featuredItems);
+      setFilteredStores(featuredStores);
+    }
+  }, [selectedCategory, featuredItems, featuredStores]);
+
+  const loadLocation = async () => {
+    try {
+      setLocationLoading(true);
+      console.log('HomeScreen: Loading location...');
+      
+      // Check cached location first
+      const cachedLocation = LocationService.getCachedLocation();
+      if (cachedLocation) {
+        setCurrentLocation(cachedLocation);
+        console.log('HomeScreen: Using cached location:', cachedLocation);
+        return;
+      }
+
+      // Get fresh location
+      const location = await LocationService.getCurrentLocationWithAddress();
+      if (location) {
+        setCurrentLocation(location);
+        console.log('HomeScreen: Got fresh location:', location);
+      } else {
+        console.log('HomeScreen: Could not get location');
+      }
+    } catch (error) {
+      console.error('HomeScreen: Error loading location:', error);
+    } finally {
+      setLocationLoading(false);
+    }
+  };
 
   const loadData = async () => {
     try {
@@ -76,7 +156,10 @@ const HomeScreen: React.FC = () => {
 
   const onRefresh = async () => {
     setRefreshing(true);
-    await loadData();
+    await Promise.all([
+      loadData(),
+      loadLocation()
+    ]);
     setRefreshing(false);
   };
 
@@ -87,7 +170,13 @@ const HomeScreen: React.FC = () => {
   };
 
   const handleCategoryPress = (category: ListingCategory) => {
-    navigation.navigate('Search', { category });
+    if (selectedCategory === category) {
+      // If same category is pressed, clear filter
+      setSelectedCategory(null);
+    } else {
+      // Set new category filter
+      setSelectedCategory(category);
+    }
   };
 
   const handleProductPress = (listing: Listing) => {
@@ -109,6 +198,42 @@ const HomeScreen: React.FC = () => {
     navigation.navigate('StoreDetail', { store });
   };
 
+  const handleSeeAllFeatured = () => {
+    navigation.navigate('FeaturedProducts');
+  };
+
+  const handleSeeAllStores = () => {
+    // Navigate to Stores tab
+    navigation.getParent()?.navigate('Stores');
+  };
+
+  const handleCartPress = () => {
+    // Navigate to Cart screen
+    (navigation as any).navigate('Cart');
+  };
+
+  const handleLocationPress = async () => {
+    try {
+      const hasPermission = await LocationService.checkLocationPermission();
+      if (!hasPermission) {
+        Alert.alert(
+          'Location Permission',
+          'This app needs location access to show nearby stores and services.',
+          [
+            { text: 'Cancel', style: 'cancel' },
+            { text: 'Grant Permission', onPress: () => loadLocation() }
+          ]
+        );
+        return;
+      }
+      
+      await loadLocation();
+    } catch (error) {
+      console.error('Error handling location press:', error);
+      Alert.alert('Error', 'Unable to get your location. Please try again.');
+    }
+  };
+
   const categories = [
     { key: ListingCategory.ELECTRONICS, icon: 'phone-portrait', color: '#8B4513', label: 'Electronics' },
     { key: ListingCategory.FURNITURE, icon: 'bed', color: '#A0522D', label: 'Furniture' },
@@ -120,18 +245,21 @@ const HomeScreen: React.FC = () => {
     { key: ListingCategory.PHARMACY, icon: 'medical', color: '#8B4513', label: 'Health' },
   ];
 
-  const renderCategoryItem = ({ item }: { item: typeof categories[0] }) => (
-    <TouchableOpacity
-      style={[styles.categoryItem]}
-      onPress={() => handleCategoryPress(item.key)}
-      activeOpacity={0.7}
-    >
-      <View style={[styles.categoryIcon, { backgroundColor: item.color }]}>
-        <Ionicons name={item.icon as any} size={20} color="white" />
-      </View>
-      <Text style={styles.categoryText}>{item.label}</Text>
-    </TouchableOpacity>
-  );
+  const renderCategoryItem = ({ item }: { item: typeof categories[0] }) => {
+    const isSelected = selectedCategory === item.key;
+    return (
+      <TouchableOpacity
+        style={[styles.categoryItem, isSelected && styles.categoryItemSelected]}
+        onPress={() => handleCategoryPress(item.key)}
+        activeOpacity={0.7}
+      >
+        <View style={[styles.categoryIcon, { backgroundColor: isSelected ? item.color : `${item.color}30` }]}>
+          <Ionicons name={item.icon as any} size={20} color={isSelected ? "white" : item.color} />
+        </View>
+        <Text style={[styles.categoryText, isSelected && styles.categoryTextSelected]}>{item.label}</Text>
+      </TouchableOpacity>
+    );
+  };
 
   const renderFeaturedItem = ({ item }: { item: Listing }) => (
     <TouchableOpacity
@@ -233,10 +361,22 @@ const HomeScreen: React.FC = () => {
       >
         {/* Header */}
         <View style={styles.header}>
-          <View style={styles.locationContainer}>
-            <Ionicons name="location-outline" size={20} color="#8B4513" />
-            <Text style={styles.locationText}>Campus</Text>
-          </View>
+          <TouchableOpacity style={styles.locationContainer} onPress={handleLocationPress}>
+            <Ionicons 
+              name={locationLoading ? "refresh" : "location-outline"} 
+              size={20} 
+              color="#8B4513" 
+              style={locationLoading ? { transform: [{ rotate: '45deg' }] } : {}}
+            />
+            <Text style={styles.locationText}>
+              {locationLoading 
+                ? 'Getting location...' 
+                : currentLocation 
+                  ? LocationService.getDisplayLocation(currentLocation)
+                  : 'Tap for location'
+              }
+            </Text>
+          </TouchableOpacity>
           
           <View style={styles.centerContainer}>
             <Text style={styles.welcomeText}>
@@ -246,6 +386,22 @@ const HomeScreen: React.FC = () => {
           </View>
           
           <View style={styles.rightContainer}>
+            {user && (
+              <TouchableOpacity 
+                style={styles.notificationButton}
+                onPress={() => setShowNotificationPopup(true)}
+              >
+                <Ionicons name="notifications-outline" size={24} color="#8B4513" />
+                {unreadNotifications > 0 && (
+                  <View style={styles.notificationBadge}>
+                    <Text style={styles.notificationBadgeText}>
+                      {unreadNotifications > 99 ? '99+' : unreadNotifications.toString()}
+                    </Text>
+                  </View>
+                )}
+              </TouchableOpacity>
+            )}
+            
             {user ? (
               <TouchableOpacity style={styles.profileButton}>
                 <Image
@@ -263,7 +419,10 @@ const HomeScreen: React.FC = () => {
               </TouchableOpacity>
             )}
             
-            <TouchableOpacity style={styles.cartButton}>
+            <TouchableOpacity 
+              style={styles.cartButton}
+              onPress={handleCartPress}
+            >
               <View style={styles.cartIconContainer}>
                 <Ionicons name="bag-outline" size={24} color="#374151" />
                 {totalItems > 0 && (
@@ -303,17 +462,50 @@ const HomeScreen: React.FC = () => {
         {/* Hero Section - Ads, Events, Promotions */}
         <HeroCarousel />
 
+        {/* Categories */}
+        <View style={styles.section}>
+          <View style={styles.sectionHeader}>
+            <Text style={styles.sectionTitle}>Categories</Text>
+            {selectedCategory && (
+              <TouchableOpacity onPress={() => setSelectedCategory(null)}>
+                <Text style={styles.clearFilterText}>Clear Filter</Text>
+              </TouchableOpacity>
+            )}
+          </View>
+          <FlatList
+            data={categories}
+            renderItem={renderCategoryItem}
+            keyExtractor={(item) => item.key}
+            horizontal
+            showsHorizontalScrollIndicator={false}
+            contentContainerStyle={styles.categoriesList}
+          />
+          {selectedCategory && (
+            <View style={styles.filterInfo}>
+              <Ionicons name="funnel" size={14} color="#8B4513" />
+              <Text style={styles.filterInfoText}>
+                Showing {categories.find(c => c.key === selectedCategory)?.label} items
+              </Text>
+            </View>
+          )}
+        </View>
+
         {/* Featured Products */}
-        {featuredItems.length > 0 && (
+        {filteredItems.length > 0 && (
           <View style={styles.section}>
             <View style={styles.sectionHeader}>
-              <Text style={styles.sectionTitle}>Featured Products</Text>
-              <TouchableOpacity>
-                <Text style={styles.seeAllText}>See All</Text>
-              </TouchableOpacity>
+              <Text style={styles.sectionTitle}>
+                {selectedCategory ? 'Filtered Products' : 'Featured Products'}
+              </Text>
+              {!selectedCategory && (
+                <TouchableOpacity onPress={handleSeeAllFeatured}>
+                  <Text style={styles.seeAllText}>See All</Text>
+                </TouchableOpacity>
+              )}
             </View>
             <FlatList
-              data={featuredItems}
+              key={`featured-grid-${selectedCategory || 'all'}`}
+              data={filteredItems}
               renderItem={renderFeaturedItem}
               keyExtractor={(item) => item.id}
               numColumns={2}
@@ -327,14 +519,19 @@ const HomeScreen: React.FC = () => {
         {/* Top Stores */}
         <View style={styles.section}>
           <View style={styles.sectionHeader}>
-            <Text style={styles.sectionTitle}>Top Stores</Text>
-            <TouchableOpacity>
-              <Text style={styles.seeAllText}>See All</Text>
-            </TouchableOpacity>
+            <Text style={styles.sectionTitle}>
+              {selectedCategory ? 'Related Stores' : 'Top Stores'}
+            </Text>
+            {!selectedCategory && (
+              <TouchableOpacity onPress={handleSeeAllStores}>
+                <Text style={styles.seeAllText}>See All</Text>
+              </TouchableOpacity>
+            )}
           </View>
-          {featuredStores.length > 0 ? (
+          
+          {filteredStores.length > 0 ? (
             <FlatList
-              data={featuredStores}
+              data={filteredStores}
               renderItem={renderStoreCard}
               keyExtractor={(item) => item.id}
               horizontal
@@ -344,12 +541,47 @@ const HomeScreen: React.FC = () => {
           ) : (
             <View style={styles.emptyStores}>
               <Text style={styles.emptyStoresText}>
-                {isLoading ? 'Loading stores...' : 'No stores available'}
+                {selectedCategory 
+                  ? `No stores found for ${categories.find(c => c.key === selectedCategory)?.label}`
+                  : isLoading ? 'Loading stores...' : 'No stores available'
+                }
               </Text>
             </View>
           )}
         </View>
     </ScrollView>
+    
+    {/* Notification Popup */}
+    <NotificationPopup
+      visible={showNotificationPopup}
+      onClose={() => {
+        console.log('HomeScreen: Closing notification popup');
+        setShowNotificationPopup(false);
+      }}
+      onNotificationsUpdate={(unreadCount) => {
+        console.log('HomeScreen: Notification update from popup - unread count:', unreadCount);
+        setUnreadNotifications(unreadCount);
+      }}
+      onNotificationPress={(notification) => {
+        console.log('HomeScreen: Notification pressed:', notification.type);
+        // Handle navigation based on notification type
+        switch (notification.type) {
+          case 'order':
+            if (notification.data?.orderId) {
+              // Navigate to order details or order list
+            }
+            break;
+          case 'product':
+            // Navigate to product details or product list
+            break;
+          case 'message':
+            navigation.getParent()?.navigate('Chat');
+            break;
+          default:
+            break;
+        }
+      }}
+    />
     </SafeAreaView>
   );
 };
@@ -408,6 +640,28 @@ const styles = StyleSheet.create({
     gap: 8,
     flex: 0.2,
     justifyContent: 'flex-end',
+  },
+  notificationButton: {
+    position: 'relative',
+    padding: 8,
+  },
+  notificationBadge: {
+    position: 'absolute',
+    right: 4,
+    top: 4,
+    backgroundColor: '#EF4444',
+    borderRadius: 10,
+    minWidth: 20,
+    height: 20,
+    justifyContent: 'center',
+    alignItems: 'center',
+    borderWidth: 2,
+    borderColor: '#FFFFFF',
+  },
+  notificationBadgeText: {
+    color: '#FFFFFF',
+    fontSize: 10,
+    fontWeight: '700',
   },
   profileButton: {
     padding: 2,
@@ -535,11 +789,37 @@ const styles = StyleSheet.create({
     color: '#374151',
     textAlign: 'center',
   },
+  categoryItemSelected: {
+    backgroundColor: '#F5F1ED',
+    borderWidth: 1,
+    borderColor: '#8B4513',
+  },
+  categoryTextSelected: {
+    color: '#8B4513',
+    fontWeight: '700',
+  },
+  clearFilterText: {
+    color: '#DC2626',
+    fontSize: 14,
+    fontWeight: '600',
+  },
+  filterInfo: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 16,
+    paddingTop: 8,
+    gap: 4,
+  },
+  filterInfoText: {
+    fontSize: 12,
+    color: '#8B7355',
+    fontStyle: 'italic',
+  },
 
   featuredItem: {
     backgroundColor: '#FFFFFF',
-    borderRadius: 12,
-    marginBottom: 12,
+    borderRadius: 16,
+    marginBottom: 16,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.08,
@@ -550,20 +830,20 @@ const styles = StyleSheet.create({
   },
   featuredImage: {
     width: '100%',
-    height: 140,
+    height: 160,
   },
   featuredContent: {
-    padding: 12,
+    padding: 16,
   },
   featuredTitle: {
-    fontSize: 15,
+    fontSize: 16,
     fontWeight: '700',
     color: '#2D1810',
-    marginBottom: 4,
-    lineHeight: 18,
+    marginBottom: 6,
+    lineHeight: 20,
   },
   featuredPrice: {
-    fontSize: 16,
+    fontSize: 18,
     fontWeight: '800',
     color: '#8B4513',
     marginBottom: 8,

@@ -30,7 +30,6 @@ const RegisterScreen: React.FC = () => {
     name: '',
     email: '',
     phone: '',
-    campus: '',
     password: '',
     confirmPassword: '',
   });
@@ -104,7 +103,6 @@ const RegisterScreen: React.FC = () => {
         password: formData.password,
         name: formData.name.trim(),
         phone: formData.phone.trim() || undefined,
-        campus: formData.campus.trim() || undefined,
       })).unwrap();
       
       Alert.alert(
@@ -213,19 +211,7 @@ const RegisterScreen: React.FC = () => {
               </View>
             </View>
 
-            <View style={styles.inputGroup}>
-              <Text style={styles.inputLabel}>Campus/University (Optional)</Text>
-              <View style={styles.inputContainer}>
-                <TextInput
-                  style={styles.textInput}
-                  placeholder="Enter your campus"
-                  value={formData.campus}
-                  onChangeText={(value) => handleInputChange('campus', value)}
-                  autoCapitalize="words"
-                  placeholderTextColor="#A0A0A0"
-                />
-              </View>
-            </View>
+
 
             <View style={styles.inputGroup}>
               <Text style={styles.inputLabel}>Password</Text>

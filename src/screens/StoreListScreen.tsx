@@ -9,15 +9,25 @@ import {
   Image,
   RefreshControl,
   Alert,
+  ActivityIndicator,
 } from 'react-native';
 import { useDispatch, useSelector } from 'react-redux';
 import { useNavigation } from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
 import { AppDispatch, RootState } from '../store';
-import { fetchStores } from '../store/slices/storesSlice';
+import { 
+  fetchStores, 
+  fetchStoresWithLocation, 
+  fetchNearbyStores,
+  setCurrentLocation,
+  setDistanceFilter,
+  filterStoresByDistance
+} from '../store/slices/storesSlice';
 import { Store } from '../types';
 import { StackNavigationProp } from '@react-navigation/stack';
 import { StoreStackParamList } from '../navigation/AppNavigator';
+import StoreCard from '../components/StoreCard';
+import LocationService from '../services/LocationService';
 
 type StoreListScreenNavigationProp = StackNavigationProp<StoreStackParamList, 'StoreList'>;
 
@@ -25,25 +35,73 @@ const StoreListScreen: React.FC = () => {
   const [searchQuery, setSearchQuery] = useState('');
   const [refreshing, setRefreshing] = useState(false);
   const [filteredStores, setFilteredStores] = useState<Store[]>([]);
+  const [distanceFilter, setDistanceFilterLocal] = useState(10); // km
+  const [showDistanceFilter, setShowDistanceFilter] = useState(false);
+  const [locationEnabled, setLocationEnabled] = useState(false);
 
   const dispatch = useDispatch<AppDispatch>();
   const navigation = useNavigation<StoreListScreenNavigationProp>();
-  const { items: stores, isLoading } = useSelector((state: RootState) => state.stores);
+  const storesState = useSelector((state: RootState) => state.stores);
+  const { 
+    items: stores, 
+    nearbyStores,
+    filteredStores: reduxFilteredStores,
+    currentLocation,
+    isLoading 
+  } = storesState;
+  
+  // Use nearby stores if available and location is enabled, otherwise use all stores
+  const storesToDisplay = locationEnabled && nearbyStores.length > 0 ? nearbyStores : stores;
 
   useEffect(() => {
     loadStores();
+    checkAndLoadLocation();
   }, []);
 
   useEffect(() => {
-    console.log('Stores changed:', stores.length, 'stores available');
-    console.log('Store names:', stores.map(s => s.name));
+    console.log('Stores changed:', storesToDisplay.length, 'stores available');
+    console.log('Store names:', storesToDisplay.map(s => s.name));
     filterStores();
-  }, [stores, searchQuery]);
+  }, [storesToDisplay, searchQuery]);
+  
+  useEffect(() => {
+    // Update distance filter in Redux when local state changes
+    dispatch(setDistanceFilter(distanceFilter));
+    if (currentLocation) {
+      dispatch(filterStoresByDistance());
+    }
+  }, [distanceFilter, currentLocation, dispatch]);
+
+  const checkAndLoadLocation = async () => {
+    try {
+      const hasPermission = await LocationService.checkLocationPermission();
+      if (hasPermission) {
+        const location = await LocationService.getCurrentLocation();
+        if (location) {
+          setLocationEnabled(true);
+          dispatch(setCurrentLocation({
+            latitude: location.latitude,
+            longitude: location.longitude
+          }));
+          
+          // Fetch nearby stores
+          await dispatch(fetchNearbyStores({
+            latitude: location.latitude,
+            longitude: location.longitude,
+            radiusKm: distanceFilter
+          }));
+        }
+      }
+    } catch (error) {
+      console.log('Could not get location for store filtering:', error);
+      setLocationEnabled(false);
+    }
+  };
 
   const loadStores = async () => {
     try {
       console.log('Loading stores...');
-      await dispatch(fetchStores());
+      await dispatch(fetchStoresWithLocation());
       console.log('Stores loaded successfully');
     } catch (error) {
       console.error('Error loading stores:', error);
@@ -53,21 +111,24 @@ const StoreListScreen: React.FC = () => {
 
   const onRefresh = async () => {
     setRefreshing(true);
-    await loadStores();
+    await Promise.all([
+      loadStores(),
+      checkAndLoadLocation()
+    ]);
     setRefreshing(false);
   };
 
   const filterStores = () => {
     console.log('Filtering stores. Search query:', searchQuery);
-    console.log('Available stores before filtering:', stores.length);
+    console.log('Available stores before filtering:', storesToDisplay.length);
     
     if (!searchQuery.trim()) {
-      setFilteredStores(stores);
-      console.log('No search query, showing all stores:', stores.length);
+      setFilteredStores(storesToDisplay);
+      console.log('No search query, showing all stores:', storesToDisplay.length);
       return;
     }
 
-    const filtered = stores.filter(store =>
+    const filtered = storesToDisplay.filter(store =>
       store.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
       store.description.toLowerCase().includes(searchQuery.toLowerCase()) ||
       store.categories?.some(category =>
@@ -77,6 +138,38 @@ const StoreListScreen: React.FC = () => {
     
     console.log('Filtered stores:', filtered.length);
     setFilteredStores(filtered);
+  };
+  
+  const handleLocationToggle = async () => {
+    if (!locationEnabled) {
+      const hasPermission = await LocationService.requestLocationPermission();
+      if (hasPermission) {
+        await checkAndLoadLocation();
+      } else {
+        Alert.alert(
+          'Location Permission Required',
+          'Please enable location services to see nearby stores.',
+          [
+            { text: 'Cancel', style: 'cancel' },
+            { text: 'OK', onPress: () => {} }
+          ]
+        );
+      }
+    } else {
+      setLocationEnabled(false);
+      setFilteredStores(stores); // Show all stores instead of nearby
+    }
+  };
+  
+  const handleDistanceFilterChange = async (newDistance: number) => {
+    setDistanceFilterLocal(newDistance);
+    if (currentLocation && locationEnabled) {
+      await dispatch(fetchNearbyStores({
+        latitude: currentLocation.latitude,
+        longitude: currentLocation.longitude,
+        radiusKm: newDistance
+      }));
+    }
   };
 
   const handleStorePress = async (store: Store) => {
@@ -88,97 +181,62 @@ const StoreListScreen: React.FC = () => {
   };
 
   const renderStoreItem = ({ item }: { item: Store }) => (
-    <TouchableOpacity
-      style={styles.storeItem}
-      onPress={() => handleStorePress(item)}
-    >
-      <View style={styles.storeImageContainer}>
-        <Image
-          source={{
-            uri: item.logoBase64
-              ? `data:image/jpeg;base64,${item.logoBase64}`
-              : item.logoUrl || 'https://placehold.co/80x80.png?text=Store'
-          }}
-          style={styles.storeImage}
-          resizeMode="cover"
-        />
-        {!item.isActive && (
-          <View style={styles.inactiveOverlay}>
-            <Text style={styles.inactiveText}>Closed</Text>
-          </View>
-        )}
-      </View>
+    <StoreCard 
+      store={item} 
+      onPress={handleStorePress}
+      width={160}
+      compact={true}
+    />
+  );
 
-      <View style={styles.storeContent}>
-        <Text style={styles.storeName} numberOfLines={1}>
-          {item.name}
-        </Text>
-        
-        <View style={styles.storeMetrics}>
-          <View style={styles.ratingContainer}>
-            <Ionicons name="star" size={14} color="#D2B48C" />
-            <Text style={styles.ratingText}>
-              {item.averageRating ? item.averageRating.toFixed(1) : 'New'}
-            </Text>
-            {item.numberOfRatings && (
-              <Text style={styles.ratingCount}>({item.numberOfRatings})</Text>
-            )}
-          </View>
-
-          {item.deliveryFee !== undefined && (
-            <View style={styles.deliveryContainer}>
-              <Ionicons name="bicycle-outline" size={14} color="#8B7355" />
-              <Text style={styles.deliveryText}>
-                K{item.deliveryFee === 0 ? 'Free' : item.deliveryFee.toFixed(2)}
-              </Text>
-            </View>
-          )}
+  const renderEmptyState = () => {
+    if (isLoading && !refreshing) {
+      return (
+        <View style={styles.loadingState}>
+          <ActivityIndicator size="large" color="#8B4513" />
+          <Text style={styles.loadingText}>Loading stores...</Text>
         </View>
+      );
+    }
 
-        {item.operatingHours && (
-          <View style={styles.hoursContainer}>
-            <Ionicons name="time-outline" size={12} color="#8B7355" />
-            <Text style={styles.hoursText}>{item.operatingHours}</Text>
-          </View>
+    return (
+      <View style={styles.emptyState}>
+        <Ionicons name="storefront-outline" size={64} color="#D2B48C" />
+        <Text style={styles.emptyStateTitle}>
+          {searchQuery ? 'No stores found' : 'No stores available'}
+        </Text>
+        <Text style={styles.emptyStateText}>
+          {searchQuery
+            ? 'Try adjusting your search terms'
+            : 'Stores will appear here when available'}
+        </Text>
+        {searchQuery && (
+          <TouchableOpacity
+            style={styles.clearSearchButton}
+            onPress={() => setSearchQuery('')}
+          >
+            <Text style={styles.clearSearchText}>Clear Search</Text>
+          </TouchableOpacity>
         )}
       </View>
-
-      <View style={styles.storeActions}>
-        <TouchableOpacity style={styles.favoriteButton}>
-          <Ionicons name="heart-outline" size={20} color="#8B7355" />
-        </TouchableOpacity>
-        
-        <TouchableOpacity style={styles.chatButton}>
-          <Ionicons name="chatbubble-outline" size={18} color="#8B4513" />
-        </TouchableOpacity>
-      </View>
-    </TouchableOpacity>
-  );
-
-  const renderEmptyState = () => (
-    <View style={styles.emptyState}>
-      <Ionicons name="storefront-outline" size={64} color="#D2B48C" />
-      <Text style={styles.emptyStateTitle}>
-        {searchQuery ? 'No stores found' : 'No stores available'}
-      </Text>
-      <Text style={styles.emptyStateText}>
-        {searchQuery
-          ? 'Try adjusting your search terms'
-          : 'Stores will appear here when available'}
-      </Text>
-      {searchQuery && (
-        <TouchableOpacity
-          style={styles.clearSearchButton}
-          onPress={() => setSearchQuery('')}
-        >
-          <Text style={styles.clearSearchText}>Clear Search</Text>
-        </TouchableOpacity>
-      )}
-    </View>
-  );
+    );
+  };
 
   return (
     <View style={styles.container}>
+      {/* Header */}
+      <View style={styles.header}>
+        <Text style={styles.headerTitle}>Discover Stores</Text>
+        <Text style={styles.headerSubtitle}>
+          {isLoading && !refreshing
+            ? 'Loading stores...'
+            : filteredStores.length > 0 
+              ? `${filteredStores.length} store${filteredStores.length !== 1 ? 's' : ''} available`
+              : 'No stores available'
+          }
+        </Text>
+      </View>
+      
       {/* Search Bar */}
       <View style={styles.searchContainer}>
         <View style={styles.searchBar}>
@@ -197,9 +255,74 @@ const StoreListScreen: React.FC = () => {
           )}
         </View>
       </View>
+      
+      {/* Location Controls */}
+      <View style={styles.locationControls}>
+        <View style={styles.locationToggle}>
+          <TouchableOpacity 
+            style={styles.locationButton}
+            onPress={handleLocationToggle}
+          >
+            <Ionicons 
+              name={locationEnabled ? "location" : "location-outline"} 
+              size={16} 
+              color={locationEnabled ? "#8B4513" : "#8B7355"} 
+            />
+            <Text style={[
+              styles.locationButtonText,
+              locationEnabled && styles.locationButtonTextActive
+            ]}>
+              {locationEnabled ? 'Nearby Stores' : 'Show Nearby'}
+            </Text>
+          </TouchableOpacity>
+          
+          {locationEnabled && (
+            <TouchableOpacity
+              style={styles.distanceButton}
+              onPress={() => setShowDistanceFilter(!showDistanceFilter)}
+            >
+              <Text style={styles.distanceButtonText}>{distanceFilter}km</Text>
+              <Ionicons name="chevron-down" size={16} color="#8B7355" />
+            </TouchableOpacity>
+          )}
+        </View>
+        
+        {locationEnabled && currentLocation && (
+          <Text style={styles.locationInfo}>
+            Showing stores within {distanceFilter}km of your location
+          </Text>
+        )}
+        
+        {/* Distance Filter Dropdown */}
+        {showDistanceFilter && locationEnabled && (
+          <View style={styles.distanceDropdown}>
+            {[5, 10, 15, 20, 30].map(distance => (
+              <TouchableOpacity
+                key={distance}
+                style={[
+                  styles.distanceOption,
+                  distanceFilter === distance && styles.distanceOptionActive
+                ]}
+                onPress={() => {
+                  handleDistanceFilterChange(distance);
+                  setShowDistanceFilter(false);
+                }}
+              >
+                <Text style={[
+                  styles.distanceOptionText,
+                  distanceFilter === distance && styles.distanceOptionTextActive
+                ]}>
+                  {distance}km
+                </Text>
+              </TouchableOpacity>
+            ))}
+          </View>
+        )}
+      </View>
 
       {/* Store List */}
       <FlatList
+        key="store-list-grid"
         data={filteredStores}
         renderItem={renderStoreItem}
         keyExtractor={(item) => item.id}
@@ -219,16 +342,8 @@ const StoreListScreen: React.FC = () => {
         }
         ListEmptyComponent={renderEmptyState}
         showsVerticalScrollIndicator={false}
+        ItemSeparatorComponent={() => <View style={{ height: 8 }} />}
       />
-
-      {/* Stats */}
-      {filteredStores.length > 0 && (
-        <View style={styles.statsContainer}>
-          <Text style={styles.statsText}>
-            {filteredStores.length} store{filteredStores.length !== 1 ? 's' : ''} found
-          </Text>
-        </View>
-      )}
     </View>
   );
 };
@@ -238,9 +353,28 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: '#F7F3F0',
   },
+  header: {
+    backgroundColor: '#FFFFFF',
+    paddingHorizontal: 20,
+    paddingTop: 16,
+    paddingBottom: 12,
+    borderBottomWidth: 1,
+    borderBottomColor: '#E8E2DD',
+  },
+  headerTitle: {
+    fontSize: 24,
+    fontWeight: '700',
+    color: '#2D1810',
+    marginBottom: 4,
+  },
+  headerSubtitle: {
+    fontSize: 14,
+    color: '#8B7355',
+    fontWeight: '500',
+  },
   searchContainer: {
     paddingHorizontal: 20,
-    paddingVertical: 16,
+    paddingVertical: 12,
     backgroundColor: '#FFFFFF',
     borderBottomWidth: 1,
     borderBottomColor: '#E8E2DD',
@@ -261,141 +395,103 @@ const styles = StyleSheet.create({
     fontSize: 16,
     color: '#2D1810',
   },
-  listContainer: {
+  locationControls: {
+    backgroundColor: '#FFFFFF',
     paddingHorizontal: 20,
+    paddingVertical: 12,
+    borderBottomWidth: 1,
+    borderBottomColor: '#E8E2DD',
+  },
+  locationToggle: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
+  locationButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: '#E8E2DD',
+    gap: 6,
+  },
+  locationButtonText: {
+    fontSize: 14,
+    color: '#8B7355',
+    fontWeight: '500',
+  },
+  locationButtonTextActive: {
+    color: '#8B4513',
+    fontWeight: '600',
+  },
+  distanceButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: '#E8E2DD',
+    gap: 4,
+  },
+  distanceButtonText: {
+    fontSize: 14,
+    color: '#8B4513',
+    fontWeight: '500',
+  },
+  locationInfo: {
+    fontSize: 12,
+    color: '#8B7355',
+    fontStyle: 'italic',
+    marginTop: 8,
+  },
+  distanceDropdown: {
+    position: 'absolute',
+    top: 50,
+    right: 20,
+    backgroundColor: '#FFFFFF',
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: '#E8E2DD',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.1,
+    shadowRadius: 8,
+    elevation: 4,
+    zIndex: 1000,
+  },
+  distanceOption: {
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    borderBottomWidth: 1,
+    borderBottomColor: '#F5F5F5',
+  },
+  distanceOptionActive: {
+    backgroundColor: '#F5F1ED',
+  },
+  distanceOptionText: {
+    fontSize: 14,
+    color: '#2D1810',
+    fontWeight: '500',
+  },
+  distanceOptionTextActive: {
+    color: '#8B4513',
+    fontWeight: '600',
+  },
+  listContainer: {
+    paddingHorizontal: 12,
     paddingTop: 16,
+    paddingBottom: 20,
   },
   emptyListContainer: {
     flex: 1,
     justifyContent: 'center',
   },
-  storeItem: {
-    backgroundColor: '#FFFFFF',
-    borderRadius: 12,
-    padding: 16,
-    marginBottom: 12,
-    marginHorizontal: 4,
-    shadowColor: '#8B4513',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-    elevation: 3,
-    flex: 0.48,
-  },
   storeRow: {
     justifyContent: 'space-between',
-  },
-  storeImageContainer: {
-    position: 'relative',
-    marginBottom: 12,
-    alignItems: 'center',
-  },
-  storeImage: {
-    width: 60,
-    height: 60,
-    borderRadius: 8,
-  },
-  inactiveOverlay: {
-    ...StyleSheet.absoluteFillObject,
-    backgroundColor: 'rgba(0,0,0,0.6)',
-    borderRadius: 8,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  inactiveText: {
-    color: 'white',
-    fontSize: 10,
-    fontWeight: 'bold',
-  },
-  storeContent: {
-    flex: 1,
-    alignItems: 'center',
-  },
-  storeName: {
-    fontSize: 16,
-    fontWeight: 'bold',
-    color: '#2D1810',
-    marginBottom: 4,
-    textAlign: 'center',
-  },
-  storeMetrics: {
-    flexDirection: 'column',
-    alignItems: 'center',
-    marginBottom: 4,
-  },
-  ratingContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginBottom: 4,
-  },
-  ratingText: {
-    fontSize: 12,
-    color: '#2D1810',
-    marginLeft: 4,
-    fontWeight: '500',
-  },
-  ratingCount: {
-    fontSize: 12,
-    color: '#8B7355',
-    marginLeft: 2,
-  },
-  deliveryContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-  },
-  deliveryText: {
-    fontSize: 12,
-    color: '#8B7355',
-    marginLeft: 4,
-  },
-  categoriesContainer: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginBottom: 6,
-  },
-  categoryTag: {
-    backgroundColor: '#F5F1ED',
-    borderRadius: 8,
-    paddingHorizontal: 6,
-    paddingVertical: 2,
-    marginRight: 4,
-    marginBottom: 2,
-  },
-  categoryTagText: {
-    fontSize: 10,
-    color: '#8B4513',
-    fontWeight: '500',
-  },
-  moreCategoriesText: {
-    fontSize: 10,
-    color: '#8B7355',
-    fontStyle: 'italic',
-  },
-  hoursContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-  },
-  hoursText: {
-    fontSize: 12,
-    color: '#8B7355',
-    marginLeft: 4,
-  },
-  storeActions: {
-    flexDirection: 'row',
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginTop: 8,
-  },
-  favoriteButton: {
-    padding: 8,
-    marginRight: 8,
-  },
-  chatButton: {
-    backgroundColor: '#F5F1ED',
-    borderRadius: 20,
-    padding: 8,
+    paddingHorizontal: 8,
   },
   emptyState: {
     alignItems: 'center',
@@ -426,17 +522,15 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontWeight: '500',
   },
-  statsContainer: {
-    backgroundColor: '#FFFFFF',
-    paddingHorizontal: 20,
-    paddingVertical: 12,
-    borderTopWidth: 1,
-    borderTopColor: '#E8E2DD',
+  loadingState: {
+    alignItems: 'center',
+    paddingVertical: 60,
   },
-  statsText: {
-    fontSize: 12,
+  loadingText: {
+    fontSize: 16,
     color: '#8B7355',
-    textAlign: 'center',
+    marginTop: 16,
+    fontWeight: '500',
   },
 });
 

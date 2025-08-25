@@ -19,6 +19,10 @@ import { addToCart } from '../store/slices/cartSlice';
 import { addToFavorites, removeFromFavorites } from '../store/slices/favoritesSlice';
 import { RootStackParamList } from '../navigation/AppNavigator';
 import { StackNavigationProp } from '@react-navigation/stack';
+import { RatingDisplay } from '../components/Rating';
+import RatingModal from '../components/RatingModal';
+import { collection, addDoc, doc, updateDoc, increment } from 'firebase/firestore';
+import { db } from '../config/firebase';
 
 type ProductDetailScreenRouteProp = RouteProp<RootStackParamList, 'ProductDetail'>;
 type ProductDetailScreenNavigationProp = StackNavigationProp<RootStackParamList, 'ProductDetail'>;
@@ -28,6 +32,7 @@ const { width } = Dimensions.get('window');
 const ProductDetailScreen: React.FC = () => {
   const [quantity, setQuantity] = useState(1);
   const [isFavorited, setIsFavorited] = useState(false);
+  const [showRatingModal, setShowRatingModal] = useState(false);
 
   const dispatch = useDispatch<AppDispatch>();
   const navigation = useNavigation<ProductDetailScreenNavigationProp>();
@@ -137,6 +142,38 @@ const ProductDetailScreen: React.FC = () => {
     }
     
     setQuantity(newQuantity);
+  };
+
+  const handleRateProduct = async (rating: number, review?: string) => {
+    if (!user || !currentListing) {
+      Alert.alert('Login Required', 'Please login to rate this product.');
+      return;
+    }
+
+    try {
+      // Add rating to Firestore
+      await addDoc(collection(db, 'productRatings'), {
+        listingId: currentListing.id,
+        userId: user.uid,
+        userName: user.name,
+        rating,
+        review: review || null,
+        createdAt: new Date().toISOString(),
+      });
+
+      // Update product's rating statistics
+      const listingRef = doc(db, 'listings', currentListing.id);
+      await updateDoc(listingRef, {
+        totalRatingSum: increment(rating),
+        numberOfRatings: increment(1),
+        averageRating: (currentListing.totalRatingSum + rating) / (currentListing.numberOfRatings + 1),
+      });
+
+      console.log('Product rating submitted successfully');
+    } catch (error) {
+      console.error('Error submitting product rating:', error);
+      throw error;
+    }
   };
 
   if (isLoading || !currentListing) {
@@ -255,27 +292,31 @@ const ProductDetailScreen: React.FC = () => {
           </View>
 
           {/* Rating */}
-          {currentListing.averageRating && (
-            <View style={styles.ratingContainer}>
-              <Text style={styles.sectionTitle}>Rating</Text>
-              <View style={styles.ratingRow}>
-                <View style={styles.stars}>
-                  {[1, 2, 3, 4, 5].map((star) => (
-                    <Ionicons
-                      key={star}
-                      name="star"
-                      size={16}
-                      color={star <= currentListing.averageRating! ? "#FFD700" : "#DDD"}
-                    />
-                  ))}
-                </View>
+          <View style={styles.ratingContainer}>
+            <Text style={styles.sectionTitle}>Rating</Text>
+            <View style={styles.ratingRow}>
+              <RatingDisplay 
+                rating={currentListing.averageRating || 0} 
+                size={16} 
+                showNumber={true} 
+              />
+              {currentListing.numberOfRatings && currentListing.numberOfRatings > 0 && (
                 <Text style={styles.ratingText}>
-                  {currentListing.averageRating.toFixed(1)} 
-                  {currentListing.numberOfRatings && ` (${currentListing.numberOfRatings} reviews)`}
+                  ({currentListing.numberOfRatings} review{currentListing.numberOfRatings !== 1 ? 's' : ''})
                 </Text>
-              </View>
+              )}
             </View>
-          )}
+            {!isOwnListing && (
+              <TouchableOpacity 
+                style={styles.rateButton}
+                onPress={() => setShowRatingModal(true)}
+                activeOpacity={0.8}
+              >
+                <Ionicons name="star-outline" size={16} color="#8B4513" />
+                <Text style={styles.rateButtonText}>Rate Product</Text>
+              </TouchableOpacity>
+            )}
+          </View>
 
           {/* Location */}
           {currentListing.addressLabel && (
@@ -289,6 +330,15 @@ const ProductDetailScreen: React.FC = () => {
           )}
         </View>
       </ScrollView>
+
+      {/* Rating Modal */}
+      <RatingModal
+        visible={showRatingModal}
+        onClose={() => setShowRatingModal(false)}
+        onSubmit={handleRateProduct}
+        type="product"
+        itemName={currentListing.title}
+      />
 
       {/* Bottom action bar */}
       {!isOwnListing && currentListing.stock !== 0 && (
@@ -495,6 +545,24 @@ const styles = StyleSheet.create({
   ratingText: {
     fontSize: 14,
     color: '#666',
+  },
+  rateButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#FFFFFF',
+    borderRadius: 8,
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderWidth: 1,
+    borderColor: '#8B4513',
+    marginTop: 8,
+    alignSelf: 'flex-start',
+  },
+  rateButtonText: {
+    fontSize: 14,
+    color: '#8B4513',
+    fontWeight: '600',
+    marginLeft: 4,
   },
   locationContainer: {
     marginBottom: 20,

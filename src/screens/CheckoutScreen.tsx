@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   View,
   Text,
@@ -16,10 +16,12 @@ import { Ionicons } from '@expo/vector-icons';
 import { AppDispatch, RootState } from '../store';
 import { clearCart } from '../store/slices/cartSlice';
 import { Order, OrderItem, OrderStatus } from '../types';
-import { addDoc, collection } from 'firebase/firestore';
+import { addDoc, collection, Timestamp } from 'firebase/firestore';
 import { db } from '../config/firebase';
 import { StackNavigationProp } from '@react-navigation/stack';
 import { RootStackParamList } from '../navigation/AppNavigator';
+import LocationService, { LocationData } from '../services/LocationService';
+import NotificationService from '../services/NotificationService';
 
 type CheckoutScreenNavigationProp = StackNavigationProp<RootStackParamList, 'Checkout'>;
 
@@ -38,6 +40,8 @@ const CheckoutScreen: React.FC = () => {
     phone: '',
   });
   const [isPlacingOrder, setIsPlacingOrder] = useState(false);
+  const [currentLocation, setCurrentLocation] = useState<LocationData | null>(null);
+  const [locationLoading, setLocationLoading] = useState(false);
 
   const dispatch = useDispatch<AppDispatch>();
   const navigation = useNavigation<CheckoutScreenNavigationProp>();
@@ -45,14 +49,62 @@ const CheckoutScreen: React.FC = () => {
   const { user } = useSelector((state: RootState) => state.auth);
 
   const deliveryFee = deliveryMethod === 'delivery' ? 5.00 : 0;
-  const taxAmount = totalAmount * 0.1; // 10% tax
-  const finalTotal = totalAmount + deliveryFee + taxAmount;
+  const finalTotal = totalAmount + deliveryFee;
+
+  // Load location on component mount
+  useEffect(() => {
+    loadCurrentLocation();
+  }, []);
+
+  const loadCurrentLocation = async () => {
+    try {
+      setLocationLoading(true);
+      const location = await LocationService.getCurrentLocationWithAddress();
+      if (location) {
+        setCurrentLocation(location);
+        // Auto-fill city if available
+        if (location.city && !address.city) {
+          setAddress(prev => ({
+            ...prev,
+            city: location.city || ''
+          }));
+        }
+      }
+    } catch (error) {
+      console.error('Error loading location:', error);
+    } finally {
+      setLocationLoading(false);
+    }
+  };
 
   const handleAddressChange = (field: keyof DeliveryAddress, value: string) => {
     setAddress(prev => ({
       ...prev,
       [field]: value,
     }));
+  };
+
+  const handleUseCurrentLocation = async () => {
+    try {
+      setLocationLoading(true);
+      const location = await LocationService.getCurrentLocationWithAddress();
+      if (location) {
+        setCurrentLocation(location);
+        setAddress(prev => ({
+          ...prev,
+          street: location.address || prev.street,
+          city: location.city || prev.city,
+        }));
+        Alert.alert('Success', 'Location filled automatically!');
+      } else {
+        Alert.alert('Error', 'Could not get your current location.');
+      }
+    } catch (error) {
+      console.error('Error using current location:', error);
+      Alert.alert('Error', 'Unable to get your location.');
+    } finally {
+      setLocationLoading(false);
+    }
   };
 
   const validateOrder = () => {
@@ -66,9 +118,40 @@ const CheckoutScreen: React.FC = () => {
       return false;
     }
 
+    // Validate cart items have required data
+    for (const item of items) {
+      if (!item.listing) {
+        Alert.alert('Error', 'Cart contains invalid items. Please refresh your cart and try again.');
+        return false;
+      }
+      if (!item.listing.id) {
+        Alert.alert('Error', 'Cart item missing product ID. Please refresh your cart and try again.');
+        return false;
+      }
+      if (!item.listing.title) {
+        Alert.alert('Error', 'Cart item missing product title. Please refresh your cart and try again.');
+        return false;
+      }
+      if (typeof item.listing.price !== 'number' || item.listing.price < 0) {
+        Alert.alert('Error', 'Cart item has invalid price. Please refresh your cart and try again.');
+        return false;
+      }
+      if (typeof item.quantity !== 'number' || item.quantity <= 0) {
+        Alert.alert('Error', 'Cart item has invalid quantity. Please refresh your cart and try again.');
+        return false;
+      }
+    }
+
     if (deliveryMethod === 'delivery') {
       if (!address.street.trim() || !address.city.trim() || !address.phone.trim()) {
         Alert.alert('Error', 'Please fill in address and phone number');
+        return false;
+      }
+      
+      // Validate phone number format
+      const phoneRegex = /^[0-9+\-\s()]+$/;
+      if (!phoneRegex.test(address.phone.trim())) {
+        Alert.alert('Error', 'Please enter a valid phone number');
         return false;
       }
     }
@@ -82,39 +165,153 @@ const CheckoutScreen: React.FC = () => {
     setIsPlacingOrder(true);
 
     try {
+      // Test Firebase connection
+      if (!db) {
+        throw new Error('Firebase database not initialized');
+      }
+      
+      // Debug cart items structure
+      console.log('Cart items before processing:', JSON.stringify(items, null, 2));
+      
       // Create order items
-      const orderItems: OrderItem[] = items.map((item: any) => ({
-        listingId: item.listing.id,
-        sellerId: item.listing.sellerId,
-        storeId: item.listing.storeId,
-        title: item.listing.title,
-        priceAtPurchase: item.listing.price,
-        quantity: item.quantity,
-        imageUrl: item.listing.imageUrl,
-        sellerName: item.listing.sellerName,
-      }));
+      const orderItems: OrderItem[] = items.map((item: any, index: number) => {
+        console.log(`Processing cart item ${index}:`, item);
+        
+        // Cart items should have a nested listing object based on CartItem type
+        const listing = item.listing;
+        
+        if (!listing) {
+          console.error(`Cart item ${index} missing listing object:`, item);
+          throw new Error(`Cart item ${index + 1} is missing product information. Please refresh your cart.`);
+        }
+        
+        if (!listing.id) {
+          console.error(`Cart item ${index} listing missing ID:`, listing);
+          throw new Error(`Cart item ${index + 1} is missing product ID. Please refresh your cart.`);
+        }
+        
+        const orderItem = {
+          listingId: listing.id,
+          sellerId: listing.sellerId || '',
+          storeId: listing.storeId || null,
+          title: listing.title || 'Unknown Item',
+          priceAtPurchase: Number(listing.price) || 0,
+          quantity: Number(item.quantity) || 1,
+          imageUrl: listing.imageUrl || (listing.imageBase64 ? `data:image/jpeg;base64,${listing.imageBase64}` : ''),
+          sellerName: listing.sellerName || 'Unknown Seller',
+        };
+        
+        console.log(`Processed order item ${index}:`, orderItem);
+        return orderItem;
+      });
 
-      // Create order object
-      const orderData: Omit<Order, 'id'> = {
+      // Prepare shipping address
+      const shippingAddress = deliveryMethod === 'delivery' 
+        ? `${address.street.trim()}, ${address.city.trim()}`
+        : 'Pickup from store';
+
+      // Create order object with proper data types
+      const orderData = {
         customerId: user!.uid,
-        storeId: items[0]?.listing.storeId, // Assuming single store for now
+        storeId: orderItems[0]?.storeId || null,
         items: orderItems,
-        totalAmount: finalTotal,
-        itemSubtotal: totalAmount,
-        deliveryCost: deliveryFee,
+        totalAmount: Number(finalTotal),
+        itemSubtotal: Number(totalAmount),
+        deliveryCost: Number(deliveryFee),
         status: OrderStatus.PENDING,
-        shippingAddress: deliveryMethod === 'delivery' 
-          ? `${address.street}, ${address.city}`
-          : 'Pickup',
-        contactPhone: address.phone || user!.phone || '',
+        shippingAddress,
+        shippingLat: deliveryMethod === 'delivery' && currentLocation ? currentLocation.latitude : null,
+        shippingLng: deliveryMethod === 'delivery' && currentLocation ? currentLocation.longitude : null,
+        shippingLabel: shippingAddress,
+        contactPhone: address.phone?.trim() || user!.phone || '',
         deliveryMethod,
+        partnerId: null,
+        deliveryPayee: deliveryMethod === 'delivery' ? 'store' : null,
+        storeRevenueAmount: Number(totalAmount + (deliveryMethod === 'delivery' ? deliveryFee : 0)),
+        partnerDeliveryAmount: deliveryMethod === 'delivery' ? Number(deliveryFee) : 0,
         paymentMethod,
-        createdAt: new Date().toISOString(),
-        updatedAt: new Date().toISOString(),
+        createdAt: Timestamp.now(),
+        updatedAt: Timestamp.now(),
       };
+      
+      // Validate order data before saving
+      console.log('Final order data:', JSON.stringify(orderData, null, 2));
+      
+      // Additional validation
+      if (!orderData.customerId) {
+        throw new Error('Customer ID is missing');
+      }
+      if (!orderData.items || orderData.items.length === 0) {
+        throw new Error('Order has no items');
+      }
+      if (isNaN(orderData.totalAmount) || orderData.totalAmount <= 0) {
+        throw new Error('Invalid order total amount');
+      }
 
       // Save order to Firestore
+      console.log('Attempting to save order:', orderData);
       const docRef = await addDoc(collection(db, 'orders'), orderData);
+      console.log('Order saved successfully with ID:', docRef.id);
+
+      // Send notification to store owner about new order
+      try {
+        // Get all unique store owners from order items
+        const storeOwnerIds = [...new Set(orderItems.map(item => item.sellerId).filter(Boolean))];
+        console.log('Found store owner IDs from order items:', storeOwnerIds);
+        console.log('Order items for debugging:', orderItems.map(item => ({
+          listingId: item.listingId,
+          sellerId: item.sellerId,
+          storeId: item.storeId,
+          title: item.title,
+          sellerName: item.sellerName
+        })));
+        
+        if (storeOwnerIds.length === 0) {
+          console.warn('No store owner IDs found in order items');
+          console.log('Original cart items before processing:', items.map((item: any) => ({
+            id: item.id,
+            listing: {
+              id: item.listing?.id,
+              sellerId: item.listing?.sellerId,
+              storeId: item.listing?.storeId,
+              title: item.listing?.title,
+              sellerName: item.listing?.sellerName
+            }
+          })));
+        } else {
+          const notificationService = NotificationService.getInstance();
+          
+          // Send notification to each unique store owner
+          for (const storeOwnerId of storeOwnerIds) {
+            console.log('Sending new order notification to store owner:', storeOwnerId);
+            console.log('Order notification details:', {
+              orderId: docRef.id,
+              storeOwnerId,
+              customerId: user!.uid,
+              finalTotal,
+              itemCount: orderItems.filter(item => item.sellerId === storeOwnerId).length,
+              totalItemCount: orderItems.length
+            });
+            
+            await notificationService.notifyNewOrder(
+              docRef.id,
+              storeOwnerId,
+              user!.uid,
+              finalTotal,
+              orderItems.filter(item => item.sellerId === storeOwnerId).length
+            );
+            console.log('New order notification sent successfully to store owner:', storeOwnerId);
+          }
+        }
+      } catch (notificationError) {
+        console.error('Failed to send new order notification:', notificationError);
+        console.error('Notification error details:', {
+          error: notificationError,
+          message: (notificationError as any)?.message,
+          stack: (notificationError as any)?.stack
+        });
+        // Don't fail the order if notification fails
+      }
 
       // Clear cart
       dispatch(clearCart());
@@ -146,9 +343,25 @@ const CheckoutScreen: React.FC = () => {
         ]
       );
 
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error placing order:', error);
-      Alert.alert('Error', 'Failed to place order. Please try again.');
+      console.error('Error details:', {
+        code: error?.code,
+        message: error?.message,
+        stack: error?.stack
+      });
+      
+      let errorMessage = 'Failed to place order. Please try again.';
+      
+      if (error?.code === 'invalid-argument') {
+        errorMessage = 'Invalid order data. Please check your information and try again.';
+      } else if (error?.code === 'permission-denied') {
+        errorMessage = 'Permission denied. Please login and try again.';
+      } else if (error?.code === 'unavailable') {
+        errorMessage = 'Service temporarily unavailable. Please try again later.';
+      }
+      
+      Alert.alert('Error', errorMessage);
     } finally {
       setIsPlacingOrder(false);
     }
@@ -213,7 +426,23 @@ const CheckoutScreen: React.FC = () => {
         {/* Delivery Address */}
         {deliveryMethod === 'delivery' && (
           <View style={styles.section}>
-            <Text style={styles.sectionTitle}>Delivery Address</Text>
+            <View style={styles.sectionHeaderWithButton}>
+              <Text style={styles.sectionTitle}>Delivery Address</Text>
+              <TouchableOpacity 
+                style={styles.locationButton}
+                onPress={handleUseCurrentLocation}
+                disabled={locationLoading}
+              >
+                <Ionicons 
+                  name={locationLoading ? "refresh" : "location"} 
+                  size={16} 
+                  color="#8B4513" 
+                />
+                <Text style={styles.locationButtonText}>
+                  {locationLoading ? 'Getting...' : 'Use Current'}
+                </Text>
+              </TouchableOpacity>
+            </View>
             
             <View style={styles.inputContainer}>
               <Text style={styles.inputLabel}>Street Address</Text>
@@ -319,11 +548,6 @@ const CheckoutScreen: React.FC = () => {
               <Text style={styles.totalValue}>K{deliveryFee.toFixed(2)}</Text>
             </View>
             
-            <View style={styles.totalRow}>
-              <Text style={styles.totalLabel}>Tax (10%)</Text>
-              <Text style={styles.totalValue}>K{taxAmount.toFixed(2)}</Text>
-            </View>
-            
             <View style={styles.divider} />
             
             <View style={styles.totalRow}>
@@ -369,6 +593,28 @@ const styles = StyleSheet.create({
     fontWeight: 'bold',
     color: '#333',
     marginBottom: 16,
+  },
+  sectionHeaderWithButton: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 16,
+  },
+  locationButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#F5F1ED',
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: '#E8E2DD',
+  },
+  locationButtonText: {
+    fontSize: 14,
+    color: '#8B4513',
+    fontWeight: '600',
+    marginLeft: 4,
   },
   summaryContainer: {
     flexDirection: 'row',

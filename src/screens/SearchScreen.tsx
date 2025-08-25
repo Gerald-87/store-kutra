@@ -48,6 +48,7 @@ const SearchScreen: React.FC = () => {
 
       <Text style={styles.sectionTitle}>Categories</Text>
       <FlatList
+        key="search-categories-list"
         data={categories}
         renderItem={renderCategoryItem}
         keyExtractor={(item) => item}

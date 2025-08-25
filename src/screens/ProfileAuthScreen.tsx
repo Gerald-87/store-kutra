@@ -24,7 +24,6 @@ const ProfileAuthScreen: React.FC = () => {
     confirmPassword: '',
     name: '',
     phone: '',
-    campus: '',
   });
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
@@ -72,7 +71,6 @@ const ProfileAuthScreen: React.FC = () => {
           password: formData.password,
           name: formData.name.trim(),
           phone: formData.phone.trim() || undefined,
-          campus: formData.campus.trim() || undefined,
         })).unwrap();
         Alert.alert('Success', 'Account created successfully!');
       } catch (error: any) {
@@ -89,7 +87,6 @@ const ProfileAuthScreen: React.FC = () => {
       confirmPassword: '',
       name: '',
       phone: '',
-      campus: '',
     });
   };
 
@@ -214,30 +211,9 @@ const ProfileAuthScreen: React.FC = () => {
                 </View>
               </View>
 
-              <View style={styles.inputContainer}>
-                <Text style={styles.label}>Campus</Text>
-                <View style={styles.inputWrapper}>
-                  <Ionicons name="school-outline" size={20} color="#8B7355" />
-                  <TextInput
-                    style={styles.input}
-                    placeholder="Enter your campus"
-                    value={formData.campus}
-                    onChangeText={(value) => updateFormData('campus', value)}
-                    placeholderTextColor="#8B7355"
-                    autoCapitalize="words"
-                  />
-                </View>
-              </View>
 
-              <View style={styles.roleInfo}>
-                <View style={styles.roleContainer}>
-                  <Ionicons name="checkmark-circle" size={20} color="#10B981" />
-                  <Text style={styles.roleText}>Account Type: Customer</Text>
-                </View>
-                <Text style={styles.roleDescription}>
-                  You'll be able to browse products, make purchases, and manage orders.
-                </Text>
-              </View>
+
+
             </>
           )}
 

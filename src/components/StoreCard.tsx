@@ -12,9 +12,11 @@ import { Store } from '../types';
 interface StoreCardProps {
   store: Store;
   onPress: (store: Store) => void;
+  width?: number;
+  compact?: boolean;
 }
 
-const StoreCard: React.FC<StoreCardProps> = ({ store, onPress }) => {
+const StoreCard: React.FC<StoreCardProps> = ({ store, onPress, width = 220, compact = false }) => {
   const renderStars = (rating: number) => {
     const stars = [];
     const fullStars = Math.floor(rating);
@@ -50,7 +52,12 @@ const StoreCard: React.FC<StoreCardProps> = ({ store, onPress }) => {
 
   return (
     <TouchableOpacity 
-      style={styles.container}
+      style={[
+        styles.container, 
+        !store.isActive && styles.inactiveStore,
+        { width },
+        compact && styles.compactContainer
+      ]}
       onPress={() => onPress(store)}
       activeOpacity={0.95}
     >
@@ -64,16 +71,20 @@ const StoreCard: React.FC<StoreCardProps> = ({ store, onPress }) => {
           style={styles.logo}
           resizeMode="cover"
         />
-        {store.isActive && (
+        {store.isActive ? (
           <View style={styles.activeIndicator}>
             <View style={styles.activeDot} />
+          </View>
+        ) : (
+          <View style={styles.inactiveIndicator}>
+            <View style={styles.inactiveDot} />
           </View>
         )}
       </View>
 
       <View style={styles.content}>
         <View style={styles.header}>
-          <Text style={styles.storeName} numberOfLines={1}>
+          <Text style={styles.storeName} numberOfLines={2} ellipsizeMode="tail">
             {store.name}
           </Text>
           <View style={styles.ratingContainer}>
@@ -83,10 +94,18 @@ const StoreCard: React.FC<StoreCardProps> = ({ store, onPress }) => {
             <Text style={styles.ratingText}>
               {store.averageRating ? store.averageRating.toFixed(1) : 'New'}
             </Text>
+            {store.numberOfRatings && store.numberOfRatings > 0 && (
+              <Text style={styles.ratingCount}>({store.numberOfRatings})</Text>
+            )}
           </View>
         </View>
 
-        {/* Store details section removed since stores don't have categories */}
+        {/* Store description */}
+        {store.description && (
+          <Text style={styles.description} numberOfLines={2} ellipsizeMode="tail">
+            {store.description}
+          </Text>
+        )}
 
         <View style={styles.footer}>
           <View style={styles.deliveryInfo}>
@@ -97,8 +116,8 @@ const StoreCard: React.FC<StoreCardProps> = ({ store, onPress }) => {
           </View>
           
           <View style={styles.locationInfo}>
-            <Ionicons name="location-outline" size={12} color="#8B7355" />
-            <Text style={styles.operatingHours}>
+            <Ionicons name="time-outline" size={12} color="#8B7355" />
+            <Text style={styles.operatingHours} numberOfLines={1}>
               {store.operatingHours || 'Open Now'}
             </Text>
           </View>
@@ -116,6 +135,7 @@ const styles = StyleSheet.create({
     marginHorizontal: 4,
     marginVertical: 4,
     width: 220,
+    minHeight: 160,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.08,
@@ -124,15 +144,23 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: '#F3F4F6',
   },
+  compactContainer: {
+    padding: 8,
+    minHeight: 140,
+  },
+  inactiveStore: {
+    opacity: 0.7,
+    backgroundColor: '#F9F9F9',
+  },
   imageContainer: {
     position: 'relative',
     alignSelf: 'center',
     marginBottom: 10,
   },
   logo: {
-    width: 50,
-    height: 50,
-    borderRadius: 25,
+    width: 56,
+    height: 56,
+    borderRadius: 28,
     backgroundColor: '#F3F4F6',
     borderWidth: 2,
     borderColor: '#FFFFFF',
@@ -151,24 +179,45 @@ const styles = StyleSheet.create({
     elevation: 2,
   },
   activeDot: {
-    width: 6,
-    height: 6,
-    borderRadius: 3,
+    width: 8,
+    height: 8,
+    borderRadius: 4,
     backgroundColor: '#10B981',
+  },
+  inactiveIndicator: {
+    position: 'absolute',
+    bottom: 0,
+    right: 0,
+    backgroundColor: '#FFFFFF',
+    borderRadius: 8,
+    padding: 2,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.1,
+    shadowRadius: 2,
+    elevation: 2,
+  },
+  inactiveDot: {
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+    backgroundColor: '#EF4444',
   },
   content: {
     flex: 1,
   },
   header: {
-    marginBottom: 6,
+    marginBottom: 8,
+    flex: 1,
   },
   storeName: {
-    fontSize: 16,
-    fontWeight: '800',
+    fontSize: 15,
+    fontWeight: '700',
     color: '#2D1810',
-    marginBottom: 4,
+    marginBottom: 6,
     textAlign: 'center',
-    letterSpacing: -0.3,
+    letterSpacing: -0.2,
+    lineHeight: 18,
   },
   ratingContainer: {
     flexDirection: 'row',
@@ -176,25 +225,33 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     backgroundColor: '#F5F1ED',
     paddingHorizontal: 8,
-    paddingVertical: 2,
+    paddingVertical: 3,
     borderRadius: 8,
     alignSelf: 'center',
+    flexWrap: 'wrap',
   },
   stars: {
     flexDirection: 'row',
     marginRight: 6,
   },
   ratingText: {
-    fontSize: 13,
+    fontSize: 12,
     color: '#92400E',
-    fontWeight: '700',
+    fontWeight: '600',
+  },
+  ratingCount: {
+    fontSize: 10,
+    color: '#6B7280',
+    fontWeight: '500',
+    marginLeft: 2,
   },
   description: {
-    fontSize: 12,
+    fontSize: 11,
     color: '#6B7280',
-    lineHeight: 16,
+    lineHeight: 14,
     marginBottom: 8,
     textAlign: 'center',
+    fontWeight: '400',
   },
   // Category styles removed since stores don't have categories
   footer: {
@@ -210,20 +267,22 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   deliveryText: {
-    fontSize: 10,
+    fontSize: 9,
     color: '#8B4513',
     fontWeight: '600',
     marginLeft: 3,
+    flexShrink: 1,
   },
   locationInfo: {
     flexDirection: 'row',
     alignItems: 'center',
   },
   operatingHours: {
-    fontSize: 10,
+    fontSize: 9,
     color: '#6B7280',
     fontWeight: '500',
     marginLeft: 2,
+    flexShrink: 1,
   },
 });
 

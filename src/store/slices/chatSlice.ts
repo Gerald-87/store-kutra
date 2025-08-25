@@ -33,9 +33,13 @@ export const sendMessage = createAsyncThunk(
     const message = {
       ...messageData,
       timestamp: new Date().toISOString(),
+      isRead: false,
     };
     
+    console.log('Sending message:', message);
     const docRef = await addDoc(collection(db, 'messages'), message);
+    console.log('Message sent with ID:', docRef.id);
+    
     return { id: docRef.id, ...message };
   }
 );
@@ -74,6 +78,47 @@ export const markMessageAsRead = createAsyncThunk(
   async (messageId: string) => {
     await updateDoc(doc(db, 'messages', messageId), { isRead: true });
     return messageId;
+  }
+);
+
+// Fetch messages for a specific conversation
+export const fetchConversationMessages = createAsyncThunk(
+  'chat/fetchConversationMessages',
+  async ({ userId, otherUserId }: { userId: string; otherUserId: string }) => {
+    try {
+      const q1 = query(
+        collection(db, 'messages'),
+        where('fromUserId', '==', userId),
+        where('toUserId', '==', otherUserId),
+        orderBy('timestamp', 'asc')
+      );
+      
+      const q2 = query(
+        collection(db, 'messages'),
+        where('fromUserId', '==', otherUserId),
+        where('toUserId', '==', userId),
+        orderBy('timestamp', 'asc')
+      );
+      
+      const [snapshot1, snapshot2] = await Promise.all([getDocs(q1), getDocs(q2)]);
+      
+      const messages: Message[] = [];
+      snapshot1.forEach((doc) => {
+        messages.push({ id: doc.id, ...doc.data() } as Message);
+      });
+      snapshot2.forEach((doc) => {
+        messages.push({ id: doc.id, ...doc.data() } as Message);
+      });
+      
+      // Sort by timestamp
+      messages.sort((a, b) => new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime());
+      
+      const conversationKey = [userId, otherUserId].sort().join('_');
+      return { conversationKey, messages };
+    } catch (error) {
+      console.error('Error fetching conversation messages:', error);
+      throw error;
+    }
   }
 );
 
@@ -161,9 +206,29 @@ const chatSlice = createSlice({
       .addCase(fetchConversations.rejected, (state, action) => {
         state.isLoading = false;
         state.error = action.error.message || 'Failed to fetch conversations';
+      })
+      
+      // Fetch Conversation Messages
+      .addCase(fetchConversationMessages.pending, (state) => {
+        state.isLoading = true;
+        state.error = null;
+      })
+      .addCase(fetchConversationMessages.fulfilled, (state, action) => {
+        state.isLoading = false;
+        const { conversationKey, messages } = action.payload;
+        state.conversations[conversationKey] = messages;
+        
+        if (!state.activeConversations.includes(conversationKey)) {
+          state.activeConversations.push(conversationKey);
+        }
+      })
+      .addCase(fetchConversationMessages.rejected, (state, action) => {
+        state.isLoading = false;
+        state.error = action.error.message || 'Failed to fetch conversation messages';
       });
   },
 });
 
 export const { addMessage, setConversationMessages, clearError } = chatSlice.actions;
+export { fetchConversationMessages };
 export default chatSlice.reducer;

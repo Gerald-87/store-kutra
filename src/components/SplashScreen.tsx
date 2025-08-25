@@ -108,11 +108,13 @@ const SplashScreen: React.FC<SplashScreenProps> = ({ onFinish }) => {
             style={[
               styles.loadingProgress,
               {
-                width: slideAnim.interpolate({
-                  inputRange: [0, 50],
-                  outputRange: ['100%', '0%'],
-                  extrapolate: 'clamp',
-                }),
+                transform: [{
+                  scaleX: slideAnim.interpolate({
+                    inputRange: [0, 50],
+                    outputRange: [1, 0],
+                    extrapolate: 'clamp',
+                  })
+                }],
               },
             ]}
           />

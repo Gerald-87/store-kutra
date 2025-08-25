@@ -7,9 +7,7 @@ import {
   query, 
   where, 
   orderBy, 
-  limit,
-  startAfter,
-  DocumentSnapshot
+  limit
 } from 'firebase/firestore';
 import { db } from '../../config/firebase';
 import { Listing, ListingCategory, ListingType, Store } from '../../types';
@@ -54,7 +52,6 @@ interface ListingsState {
   isLoading: boolean;
   error: string | null;
   hasMore: boolean;
-  lastDoc: DocumentSnapshot | null;
   searchQuery: string;
   selectedCategory: ListingCategory | null;
   selectedType: ListingType | null;
@@ -70,7 +67,6 @@ const initialState: ListingsState = {
   isLoading: false,
   error: null,
   hasMore: true,
-  lastDoc: null,
   searchQuery: '',
   selectedCategory: null,
   selectedType: null,
@@ -89,8 +85,6 @@ export const fetchListings = createAsyncThunk(
     searchQuery?: string;
     loadMore?: boolean;
   }, { getState }) => {
-    const state = getState() as { listings: ListingsState };
-    
     let q = query(collection(db, 'listings'), orderBy('postedDate', 'desc'));
     
     if (category) {
@@ -107,22 +101,30 @@ export const fetchListings = createAsyncThunk(
         searchQuery.toLowerCase().split(' ')));
     }
     
-    q = query(q, limit(20));
+    // Simple pagination based on current items count
+    const state = getState() as { listings: ListingsState };
+    const offset = loadMore ? state.listings.items.length : 0;
     
-    if (loadMore && state.listings.lastDoc) {
-      q = query(q, startAfter(state.listings.lastDoc));
-    }
+    q = query(q, limit(20));
     
     const querySnapshot = await getDocs(q);
     
     const listings: Listing[] = [];
     querySnapshot.forEach((doc) => {
-      listings.push({ id: doc.id, ...doc.data() } as Listing);
+      const data = doc.data();
+      // Convert Firestore timestamps to ISO strings
+      const listing = {
+        ...data,
+        id: doc.id,
+        postedDate: data.postedDate?.toDate?.()?.toISOString() || data.postedDate,
+        createdAt: data.createdAt?.toDate?.()?.toISOString() || data.createdAt,
+        updatedAt: data.updatedAt?.toDate?.()?.toISOString() || data.updatedAt,
+      } as unknown as Listing;
+      listings.push(listing);
     });
     
     return {
       listings,
-      lastDoc: querySnapshot.docs[querySnapshot.docs.length - 1] || null,
       hasMore: querySnapshot.docs.length === 20,
       loadMore,
     };
@@ -143,7 +145,16 @@ export const fetchFeaturedListings = createAsyncThunk(
     
     const listings: Listing[] = [];
     querySnapshot.forEach((doc) => {
-      listings.push({ id: doc.id, ...doc.data() } as Listing);
+      const data = doc.data();
+      // Convert Firestore timestamps to ISO strings
+      const listing = {
+        ...data,
+        id: doc.id,
+        postedDate: data.postedDate?.toDate?.()?.toISOString() || data.postedDate,
+        createdAt: data.createdAt?.toDate?.()?.toISOString() || data.createdAt,
+        updatedAt: data.updatedAt?.toDate?.()?.toISOString() || data.updatedAt,
+      } as unknown as Listing;
+      listings.push(listing);
     });
     
     return listings;
@@ -157,7 +168,16 @@ export const fetchListingById = createAsyncThunk(
     const docSnap = await getDoc(docRef);
     
     if (docSnap.exists()) {
-      return { id: docSnap.id, ...docSnap.data() } as Listing;
+      const data = docSnap.data();
+      // Convert Firestore timestamps to ISO strings
+      const listing = {
+        ...data,
+        id: docSnap.id,
+        postedDate: data.postedDate?.toDate?.()?.toISOString() || data.postedDate,
+        createdAt: data.createdAt?.toDate?.()?.toISOString() || data.createdAt,
+        updatedAt: data.updatedAt?.toDate?.()?.toISOString() || data.updatedAt,
+      } as unknown as Listing;
+      return listing;
     } else {
       throw new Error('Listing not found');
     }
@@ -177,7 +197,15 @@ export const fetchStores = createAsyncThunk(
     
     const stores: Store[] = [];
     querySnapshot.forEach((doc) => {
-      stores.push({ id: doc.id, ...doc.data() } as Store);
+      const data = doc.data();
+      // Convert Firestore timestamps to ISO strings
+      const store = {
+        ...data,
+        id: doc.id,
+        createdAt: data.createdAt?.toDate?.()?.toISOString() || data.createdAt,
+        updatedAt: data.updatedAt?.toDate?.()?.toISOString() || data.updatedAt,
+      } as Store;
+      stores.push(store);
     });
     
     return stores;
@@ -246,7 +274,6 @@ const listingsSlice = createSlice({
     
     clearListings: (state) => {
       state.items = [];
-      state.lastDoc = null;
       state.hasMore = true;
     },
     
@@ -285,7 +312,7 @@ const listingsSlice = createSlice({
       })
       .addCase(fetchListings.fulfilled, (state, action) => {
         state.isLoading = false;
-        const { listings, lastDoc, hasMore, loadMore } = action.payload;
+        const { listings, hasMore, loadMore } = action.payload;
         
         if (loadMore) {
           state.items = [...state.items, ...listings];
@@ -293,7 +320,6 @@ const listingsSlice = createSlice({
           state.items = listings;
         }
         
-        state.lastDoc = lastDoc;
         state.hasMore = hasMore;
       })
       .addCase(fetchListings.rejected, (state, action) => {

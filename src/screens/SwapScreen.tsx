@@ -10,16 +10,20 @@ import {
   Modal,
   TextInput,
   ScrollView,
+  RefreshControl,
+  ActivityIndicator,
 } from 'react-native';
 import { useDispatch, useSelector } from 'react-redux';
+import { useNavigation } from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
 import { AppDispatch, RootState } from '../store';
 import { fetchListings } from '../store/slices/listingsSlice';
 import { Listing, ListingType, SwapRequest } from '../types';
-import { collection, addDoc, query, where, getDocs, orderBy } from 'firebase/firestore';
+import { collection, addDoc, query, where, getDocs, orderBy, Timestamp, doc, deleteDoc, updateDoc } from 'firebase/firestore';
 import { db } from '../config/firebase';
 
 const SwapScreen: React.FC = () => {
+  const navigation = useNavigation();
   const [swapListings, setSwapListings] = useState<Listing[]>([]);
   const [mySwapListings, setMySwapListings] = useState<Listing[]>([]);
   const [swapRequests, setSwapRequests] = useState<SwapRequest[]>([]);
@@ -29,6 +33,8 @@ const SwapScreen: React.FC = () => {
   const [swapMessage, setSwapMessage] = useState('');
   const [activeTab, setActiveTab] = useState<'browse' | 'my_swaps' | 'requests'>('browse');
   const [isLoading, setIsLoading] = useState(false);
+  const [refreshing, setRefreshing] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
   const dispatch = useDispatch<AppDispatch>();
   const { user } = useSelector((state: RootState) => state.auth) as any;
@@ -41,17 +47,26 @@ const SwapScreen: React.FC = () => {
 
   const loadSwapData = async () => {
     setIsLoading(true);
+    setError(null);
     try {
       await Promise.all([
         loadSwapListings(),
         loadMySwapListings(),
         loadSwapRequests(),
       ]);
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error loading swap data:', error);
+      setError('Failed to load swap data. Please try again.');
+      Alert.alert('Error', 'Failed to load swap data. Please check your connection and try again.');
     } finally {
       setIsLoading(false);
     }
+  };
+
+  const onRefresh = async () => {
+    setRefreshing(true);
+    await loadSwapData();
+    setRefreshing(false);
   };
 
   const loadSwapListings = async () => {
@@ -140,6 +155,176 @@ const SwapScreen: React.FC = () => {
     }
   };
 
+  const initializeChat = async (listing: Listing) => {
+    if (!user) {
+      Alert.alert('Login Required', 'Please login to start a chat');
+      return;
+    }
+
+    if (!listing.sellerId || listing.sellerId === user.uid) {
+      Alert.alert('Error', 'Cannot chat with yourself');
+      return;
+    }
+
+    try {
+      // Create conversation ID based on user IDs
+      const conversationId = [user.uid, listing.sellerId].sort().join('_');
+      
+      // Navigate to conversation screen
+      (navigation as any).navigate('Conversation', {
+        conversationId,
+        otherUserId: listing.sellerId,
+        otherUserName: listing.sellerName || 'User',
+        listingId: listing.id,
+      });
+    } catch (error) {
+      console.error('Error initializing chat:', error);
+      Alert.alert('Error', 'Failed to start chat. Please try again.');
+    }
+  };
+
+  const handleDeleteListing = async (listingId: string) => {
+    Alert.alert(
+      'Delete Listing',
+      'Are you sure you want to delete this swap listing?',
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Delete',
+          style: 'destructive',
+          onPress: async () => {
+            try {
+              await deleteDoc(doc(db, 'listings', listingId));
+              Alert.alert('Success', 'Listing deleted successfully!');
+              loadMySwapListings();
+            } catch (error) {
+              console.error('Error deleting listing:', error);
+              Alert.alert('Error', 'Failed to delete listing. Please try again.');
+            }
+          }
+        }
+      ]
+    );
+  };
+
+  const handleEditListing = async (listing: Listing) => {
+    Alert.alert(
+      'Edit Listing',
+      'What would you like to update?',
+      [
+        {
+          text: 'Update Description',
+          onPress: () => handleUpdateDescription(listing)
+        },
+        {
+          text: 'Mark as Unavailable',
+          onPress: () => handleToggleAvailability(listing)
+        },
+        { text: 'Cancel', style: 'cancel' }
+      ]
+    );
+  };
+
+  const handleUpdateDescription = (listing: Listing) => {
+    Alert.prompt(
+      'Update Description',
+      'Enter new description:',
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Update',
+          onPress: async (newDescription) => {
+            if (newDescription && newDescription.trim()) {
+              try {
+                await updateDoc(doc(db, 'listings', listing.id), {
+                  description: newDescription.trim(),
+                  updatedAt: Timestamp.now()
+                });
+                Alert.alert('Success', 'Description updated successfully!');
+                loadMySwapListings();
+              } catch (error) {
+                console.error('Error updating description:', error);
+                Alert.alert('Error', 'Failed to update description.');
+              }
+            }
+          }
+        }
+      ],
+      'plain-text',
+      listing.description
+    );
+  };
+
+  const handleToggleAvailability = async (listing: Listing) => {
+    try {
+      const newStatus = listing.isActive ? false : true;
+      await updateDoc(doc(db, 'listings', listing.id), {
+        status: newStatus,
+        updatedAt: Timestamp.now()
+      });
+      Alert.alert('Success', `Listing marked as ${newStatus}!`);
+      loadMySwapListings();
+    } catch (error) {
+      console.error('Error updating availability:', error);
+      Alert.alert('Error', 'Failed to update availability.');
+    }
+  };
+
+  const handleCancelSwapRequest = async (requestId: string) => {
+    Alert.alert(
+      'Cancel Request',
+      'Are you sure you want to cancel this swap request?',
+      [
+        { text: 'No', style: 'cancel' },
+        {
+          text: 'Yes',
+          style: 'destructive',
+          onPress: async () => {
+            try {
+              await updateDoc(doc(db, 'swapRequests', requestId), {
+                status: 'cancelled',
+                updatedAt: Timestamp.now()
+              });
+              Alert.alert('Success', 'Swap request cancelled.');
+              loadSwapRequests();
+            } catch (error) {
+              console.error('Error cancelling request:', error);
+              Alert.alert('Error', 'Failed to cancel request.');
+            }
+          }
+        }
+      ]
+    );
+  };
+
+  const handleAcceptSwapRequest = async (requestId: string) => {
+    try {
+      await updateDoc(doc(db, 'swapRequests', requestId), {
+        status: 'accepted',
+        updatedAt: Timestamp.now()
+      });
+      Alert.alert('Success', 'Swap request accepted!');
+      loadSwapRequests();
+    } catch (error) {
+      console.error('Error accepting request:', error);
+      Alert.alert('Error', 'Failed to accept request.');
+    }
+  };
+
+  const handleRejectSwapRequest = async (requestId: string) => {
+    try {
+      await updateDoc(doc(db, 'swapRequests', requestId), {
+        status: 'rejected',
+        updatedAt: Timestamp.now()
+      });
+      Alert.alert('Success', 'Swap request rejected.');
+      loadSwapRequests();
+    } catch (error) {
+      console.error('Error rejecting request:', error);
+      Alert.alert('Error', 'Failed to reject request.');
+    }
+  };
+
   const handleSwapRequest = (listing: Listing) => {
     if (!user) {
       Alert.alert('Login Required', 'Please login to request swaps');
@@ -178,8 +363,8 @@ const SwapScreen: React.FC = () => {
         toListingTitle: selectedListing.title,
         status: 'pending',
         message: swapMessage.trim(),
-        createdAt: new Date().toISOString(),
-        updatedAt: new Date().toISOString(),
+        createdAt: Timestamp.now(),
+        updatedAt: Timestamp.now(),
       };
 
       await addDoc(collection(db, 'swapRequests'), swapRequestData);
@@ -216,12 +401,55 @@ const SwapScreen: React.FC = () => {
         <Text style={styles.listingDescription} numberOfLines={2}>
           {item.description}
         </Text>
+        
+        {/* Enhanced property and location information */}
+        {item.propertyType && (
+          <View style={styles.propertyTypeContainer}>
+            <Ionicons 
+              name={item.propertyType === 'House' ? 'home-outline' : 
+                   item.propertyType === 'Car' ? 'car-outline' : 'cube-outline'} 
+              size={12} 
+              color="#8B4513" 
+            />
+            <Text style={styles.propertyType}>{item.propertyType}</Text>
+          </View>
+        )}
+        
+        {/* Location information */}
+        {item.location && (
+          <View style={styles.locationContainer}>
+            <Ionicons name="location-outline" size={12} color="#8B7355" />
+            <Text style={styles.locationText} numberOfLines={1}>
+              {item.location.city}
+            </Text>
+          </View>
+        )}
+        
+        {/* Swap value */}
+        {item.swapValue && (
+          <View style={styles.valueContainer}>
+            <Text style={styles.swapValue}>
+              Est. Value: K{item.swapValue.toFixed(2)}
+            </Text>
+          </View>
+        )}
+        
+        {/* Swap preferences preview */}
+        {item.swapPreferences && item.swapPreferences.length > 0 && (
+          <View style={styles.preferencesContainer}>
+            <Text style={styles.preferencesLabel}>Looking for:</Text>
+            <Text style={styles.preferencesText} numberOfLines={1}>
+              {item.swapPreferences.join(', ')}
+            </Text>
+          </View>
+        )}
+        
         <View style={styles.listingFooter}>
           <Text style={styles.sellerName}>by {item.sellerName}</Text>
           <View style={styles.actionButtons}>
             <TouchableOpacity
               style={styles.chatButton}
-              onPress={() => {/* Navigate to chat */}}
+              onPress={() => initializeChat(item)}
             >
               <Ionicons name="chatbubble-outline" size={14} color="#8B4513" />
             </TouchableOpacity>
@@ -256,13 +484,65 @@ const SwapScreen: React.FC = () => {
         <Text style={styles.listingDescription} numberOfLines={2}>
           {item.description}
         </Text>
+        
+        {/* Enhanced information for my swap listings */}
+        {item.propertyType && (
+          <View style={styles.propertyTypeContainer}>
+            <Ionicons 
+              name={item.propertyType === 'House' ? 'home-outline' : 
+                   item.propertyType === 'Car' ? 'car-outline' : 'cube-outline'} 
+              size={12} 
+              color="#8B4513" 
+            />
+            <Text style={styles.propertyType}>{item.propertyType}</Text>
+          </View>
+        )}
+        
+        {/* Location for my listings */}
+        {item.location && (
+          <View style={styles.locationContainer}>
+            <Ionicons name="location-outline" size={12} color="#8B7355" />
+            <Text style={styles.locationText} numberOfLines={1}>
+              {item.location.address}
+            </Text>
+          </View>
+        )}
+        
+        {/* Swap value and preferences */}
+        {item.swapValue && (
+          <View style={styles.valueContainer}>
+            <Text style={styles.swapValue}>
+              Est. Value: K{item.swapValue.toFixed(2)}
+            </Text>
+          </View>
+        )}
+        
+        {/* Views and status */}
+        <View style={styles.statsContainer}>
+          <Ionicons name="eye-outline" size={12} color="#8B7355" />
+          <Text style={styles.viewsText}>{item.views || 0} views</Text>
+          {item.isActive === false && (
+            <Text style={styles.inactiveText}>• Inactive</Text>
+          )}
+        </View>
+        
         <View style={styles.listingFooter}>
           <Text style={styles.listingDate}>
             Posted {new Date(item.postedDate).toLocaleDateString()}
           </Text>
-          <View style={styles.viewsContainer}>
-            <Ionicons name="eye-outline" size={14} color="#666" />
-            <Text style={styles.viewsText}>{item.views || 0}</Text>
+          <View style={styles.actionButtons}>
+            <TouchableOpacity
+              style={styles.editButton}
+              onPress={() => handleEditListing(item)}
+            >
+              <Ionicons name="create-outline" size={14} color="#8B4513" />
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={styles.deleteButton}
+              onPress={() => handleDeleteListing(item.id)}
+            >
+              <Ionicons name="trash-outline" size={14} color="#E74C3C" />
+            </TouchableOpacity>
           </View>
         </View>
       </View>
@@ -319,13 +599,32 @@ const SwapScreen: React.FC = () => {
           {new Date(item.createdAt).toLocaleDateString()}
         </Text>
         
+        {/* Action buttons for incoming requests */}
         {isIncoming && item.status === 'pending' && (
           <View style={styles.requestActions}>
-            <TouchableOpacity style={styles.rejectButton}>
+            <TouchableOpacity 
+              style={styles.rejectButton}
+              onPress={() => handleRejectSwapRequest(item.id!)}
+            >
               <Text style={styles.rejectButtonText}>Reject</Text>
             </TouchableOpacity>
-            <TouchableOpacity style={styles.acceptButton}>
+            <TouchableOpacity 
+              style={styles.acceptButton}
+              onPress={() => handleAcceptSwapRequest(item.id!)}
+            >
               <Text style={styles.acceptButtonText}>Accept</Text>
+            </TouchableOpacity>
+          </View>
+        )}
+        
+        {/* Cancel button for outgoing requests */}
+        {!isIncoming && ['pending', 'accepted'].includes(item.status) && (
+          <View style={styles.requestActions}>
+            <TouchableOpacity 
+              style={styles.cancelButton}
+              onPress={() => handleCancelSwapRequest(item.id!)}
+            >
+              <Text style={styles.cancelButtonText}>Cancel Request</Text>
             </TouchableOpacity>
           </View>
         )}
@@ -348,21 +647,35 @@ const SwapScreen: React.FC = () => {
       case 'browse':
         return (
           <FlatList
+            key={`swap-${activeTab}-list`}
             data={swapListings}
             renderItem={renderSwapListing}
             keyExtractor={(item) => item.id}
-            numColumns={2}
-            columnWrapperStyle={styles.gridRow}
             contentContainerStyle={styles.listContainer}
             showsVerticalScrollIndicator={false}
+            refreshControl={
+              <RefreshControl
+                refreshing={refreshing}
+                onRefresh={onRefresh}
+                colors={['#8B4513']}
+                tintColor="#8B4513"
+              />
+            }
             ListEmptyComponent={
-              <View style={styles.emptyState}>
-                <Ionicons name="swap-horizontal-outline" size={64} color="#D2B48C" />
-                <Text style={styles.emptyTitle}>No swap items available</Text>
-                <Text style={styles.emptyText}>
-                  Items available for swap will appear here
-                </Text>
-              </View>
+              isLoading ? (
+                <View style={styles.loadingContainer}>
+                  <ActivityIndicator size="large" color="#8B4513" />
+                  <Text style={styles.loadingText}>Loading swap items...</Text>
+                </View>
+              ) : (
+                <View style={styles.emptyState}>
+                  <Ionicons name="swap-horizontal-outline" size={64} color="#D2B48C" />
+                  <Text style={styles.emptyTitle}>No swap items available</Text>
+                  <Text style={styles.emptyText}>
+                    Items available for swap will appear here
+                  </Text>
+                </View>
+              )
             }
           />
         );
@@ -370,22 +683,38 @@ const SwapScreen: React.FC = () => {
       case 'my_swaps':
         return (
           <FlatList
+            key={`swap-${activeTab}-list`}
             data={mySwapListings}
             renderItem={renderMySwapListing}
             keyExtractor={(item) => item.id}
             contentContainerStyle={styles.listContainer}
             showsVerticalScrollIndicator={false}
+            refreshControl={
+              <RefreshControl
+                refreshing={refreshing}
+                onRefresh={onRefresh}
+                colors={['#8B4513']}
+                tintColor="#8B4513"
+              />
+            }
             ListEmptyComponent={
-              <View style={styles.emptyState}>
-                <Ionicons name="add-circle-outline" size={64} color="#ccc" />
-                <Text style={styles.emptyTitle}>No swap items listed</Text>
-                <Text style={styles.emptyText}>
-                  List items you want to swap with others
-                </Text>
-                <TouchableOpacity style={styles.addButton}>
-                  <Text style={styles.addButtonText}>List Item for Swap</Text>
-                </TouchableOpacity>
-              </View>
+              isLoading ? (
+                <View style={styles.loadingContainer}>
+                  <ActivityIndicator size="large" color="#8B4513" />
+                  <Text style={styles.loadingText}>Loading your items...</Text>
+                </View>
+              ) : (
+                <View style={styles.emptyState}>
+                  <Ionicons name="add-circle-outline" size={64} color="#ccc" />
+                  <Text style={styles.emptyTitle}>No swap items listed</Text>
+                  <Text style={styles.emptyText}>
+                    List items you want to swap with others
+                  </Text>
+                  <TouchableOpacity style={styles.addButton}>
+                    <Text style={styles.addButtonText}>List Item for Swap</Text>
+                  </TouchableOpacity>
+                </View>
+              )
             }
           />
         );
@@ -393,19 +722,35 @@ const SwapScreen: React.FC = () => {
       case 'requests':
         return (
           <FlatList
+            key={`swap-${activeTab}-list`}
             data={swapRequests}
             renderItem={renderSwapRequest}
             keyExtractor={(item) => item.id!}
             contentContainerStyle={styles.listContainer}
             showsVerticalScrollIndicator={false}
+            refreshControl={
+              <RefreshControl
+                refreshing={refreshing}
+                onRefresh={onRefresh}
+                colors={['#8B4513']}
+                tintColor="#8B4513"
+              />
+            }
             ListEmptyComponent={
-              <View style={styles.emptyState}>
-                <Ionicons name="chatbubbles-outline" size={64} color="#ccc" />
-                <Text style={styles.emptyTitle}>No swap requests</Text>
-                <Text style={styles.emptyText}>
-                  Your swap requests will appear here
-                </Text>
-              </View>
+              isLoading ? (
+                <View style={styles.loadingContainer}>
+                  <ActivityIndicator size="large" color="#8B4513" />
+                  <Text style={styles.loadingText}>Loading requests...</Text>
+                </View>
+              ) : (
+                <View style={styles.emptyState}>
+                  <Ionicons name="chatbubbles-outline" size={64} color="#ccc" />
+                  <Text style={styles.emptyTitle}>No swap requests</Text>
+                  <Text style={styles.emptyText}>
+                    Your swap requests will appear here
+                  </Text>
+                </View>
+              )
             }
           />
         );
@@ -427,7 +772,7 @@ const SwapScreen: React.FC = () => {
               Alert.alert('Login Required', 'Please login to list items for swap');
               return;
             }
-            // Navigate to create listing screen
+            (navigation as any).navigate('AddRentalSwapListing', { listingType: 'swap' });
           }}
         >
           <Ionicons name="add" size={24} color="#007AFF" />
@@ -520,6 +865,7 @@ const SwapScreen: React.FC = () => {
             <View style={styles.sectionContainer}>
               <Text style={styles.sectionTitle}>Select your item to offer:</Text>
               <FlatList
+                key="swap-modal-my-items"
                 data={mySwapListings}
                 renderItem={({ item }) => (
                   <TouchableOpacity
@@ -711,6 +1057,32 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     marginLeft: 4,
   },
+  editButton: {
+    backgroundColor: '#E8E2DD',
+    borderRadius: 12,
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    marginRight: 4,
+  },
+  deleteButton: {
+    backgroundColor: '#FFE5E5',
+    borderRadius: 12,
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+  },
+  cancelButton: {
+    backgroundColor: '#E74C3C',
+    borderRadius: 8,
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+    flex: 1,
+  },
+  cancelButtonText: {
+    color: '#FFFFFF',
+    fontSize: 14,
+    fontWeight: '600',
+    textAlign: 'center',
+  },
   listingDate: {
     fontSize: 12,
     color: '#666',
@@ -718,11 +1090,6 @@ const styles = StyleSheet.create({
   viewsContainer: {
     flexDirection: 'row',
     alignItems: 'center',
-  },
-  viewsText: {
-    fontSize: 12,
-    color: '#666',
-    marginLeft: 4,
   },
   requestCard: {
     backgroundColor: 'white',
@@ -954,6 +1321,76 @@ const styles = StyleSheet.create({
     color: '#333',
     textAlignVertical: 'top',
     minHeight: 80,
+  },
+  loadingContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingVertical: 60,
+  },
+  loadingText: {
+    fontSize: 16,
+    color: '#8B7355',
+    marginTop: 12,
+  },
+  // Enhanced styling for new features
+  propertyTypeContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 4,
+  },
+  propertyType: {
+    fontSize: 11,
+    color: '#8B4513',
+    marginLeft: 4,
+    fontWeight: '600',
+  },
+  locationContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 4,
+  },
+  locationText: {
+    fontSize: 11,
+    color: '#8B7355',
+    marginLeft: 4,
+    flex: 1,
+  },
+  valueContainer: {
+    marginBottom: 4,
+  },
+  swapValue: {
+    fontSize: 11,
+    color: '#8B4513',
+    fontWeight: '600',
+  },
+  preferencesContainer: {
+    marginBottom: 4,
+  },
+  preferencesLabel: {
+    fontSize: 10,
+    color: '#8B7355',
+    fontWeight: '600',
+  },
+  preferencesText: {
+    fontSize: 10,
+    color: '#8B7355',
+  },
+  statsContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 4,
+  },
+  viewsText: {
+    fontSize: 11,
+    color: '#8B7355',
+    marginLeft: 4,
+  },
+  inactiveText: {
+    fontSize: 11,
+    color: '#EF4444',
+    marginLeft: 8,
+    fontWeight: '600',
   },
 });
 

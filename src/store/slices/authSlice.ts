@@ -32,7 +32,12 @@ export const loginUser = createAsyncThunk(
     const userDoc = await getDoc(doc(db, 'users', userCredential.user.uid));
     
     if (userDoc.exists()) {
-      return userDoc.data() as User;
+      const userData = userDoc.data();
+      // Ensure uid is included in the user object
+      return {
+        ...userData,
+        uid: userCredential.user.uid,
+      } as User;
     } else {
       throw new Error('User data not found');
     }
@@ -45,14 +50,12 @@ export const registerUser = createAsyncThunk(
     email, 
     password, 
     name,
-    phone,
-    campus 
+    phone
   }: { 
     email: string; 
     password: string; 
     name: string;
     phone?: string;
-    campus?: string;
   }) => {
     const userCredential = await createUserWithEmailAndPassword(auth, email, password);
     
@@ -65,7 +68,6 @@ export const registerUser = createAsyncThunk(
       name,
       email,
       phone,
-      campus,
       role: UserRole.CUSTOMER,
       joinedDate: new Date().toISOString(),
       createdAt: new Date().toISOString(),

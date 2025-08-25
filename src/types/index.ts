@@ -102,10 +102,14 @@ export interface Product {
 
 export enum OrderStatus {
   PENDING = "Pending",
+  CONFIRMED = "Confirmed", 
+  PREPARING = "Preparing",
+  READY = "Ready",
   IN_TRANSIT = "In Transit",
   DELIVERED = "Delivered",
   COMPLETED = "Completed", 
   CANCELLED = "Cancelled",
+  REJECTED = "Rejected",
 }
 
 export interface OrderItem {
@@ -142,6 +146,17 @@ export interface Order {
   paymentMethod: 'cash' | 'mobile_money' | 'bank' | null;
   createdAt: any; // Firestore Timestamp or ISO string
   updatedAt: any; // Firestore Timestamp or ISO string
+  // Order status progression timestamps
+  confirmedAt?: any; // Firestore Timestamp or ISO string
+  preparingAt?: any; // Firestore Timestamp or ISO string  
+  readyAt?: any; // Firestore Timestamp or ISO string
+  inTransitAt?: any; // Firestore Timestamp or ISO string
+  pickedUpAt?: any; // Firestore Timestamp or ISO string
+  deliveredAt?: any; // Firestore Timestamp or ISO string
+  completedAt?: any; // Firestore Timestamp or ISO string
+  cancelledAt?: any; // Firestore Timestamp or ISO string
+  rejectedAt?: any; // Firestore Timestamp or ISO string
+  assignedAt?: any; // Firestore Timestamp or ISO string
 }
 
 // Receipts & Quotations
@@ -206,6 +221,70 @@ export interface Quotation {
 
 export type RatingValue = 1 | 2 | 3 | 4 | 5;
 
+// Property types for rentals and swaps
+export enum PropertyType {
+  HOUSE = "House",
+  APARTMENT = "Apartment",
+  ROOM = "Room",
+  CAR = "Car",
+  MOTORCYCLE = "Motorcycle",
+  BICYCLE = "Bicycle",
+  ELECTRONICS = "Electronics",
+  FURNITURE = "Furniture",
+  TOOLS = "Tools",
+  CLOTHING = "Clothing",
+  BOOKS = "Books",
+  SPORTS = "Sports Equipment",
+  OTHER = "Other"
+}
+
+// Rental and swap specific interfaces
+export interface LocationInfo {
+  latitude: number;
+  longitude: number;
+  address: string;
+  city: string;
+  country?: string;
+  zipCode?: string;
+  landmark?: string;
+}
+
+export interface ContactInfo {
+  phone?: string;
+  whatsapp?: string;
+  email?: string;
+  preferredContactMethod?: 'phone' | 'whatsapp' | 'email' | 'chat';
+  availableHours?: string;
+}
+
+// Property-specific details
+export interface HouseDetails {
+  bedrooms?: number;
+  bathrooms?: number;
+  squareFootage?: number;
+  furnished?: boolean;
+  parking?: boolean;
+  garden?: boolean;
+  petFriendly?: boolean;
+  utilities?: string[];
+  amenities?: string[];
+  houseType?: 'single_family' | 'townhouse' | 'duplex' | 'villa';
+}
+
+export interface CarDetails {
+  make?: string;
+  model?: string;
+  year?: number;
+  color?: string;
+  mileage?: number;
+  fuelType?: 'petrol' | 'diesel' | 'electric' | 'hybrid';
+  transmission?: 'manual' | 'automatic';
+  seatingCapacity?: number;
+  features?: string[];
+  insuranceIncluded?: boolean;
+  driverIncluded?: boolean;
+}
+
 export interface Listing {
   id: string;
   title: string;
@@ -220,6 +299,8 @@ export interface Listing {
   sellerId: string; 
   sellerName: string; 
   postedDate: any; // Firestore Timestamp or ISO string
+  createdAt?: any; // Firestore Timestamp or ISO string
+  updatedAt?: any; // Firestore Timestamp or ISO string
   views?: number;
   stock?: number; // Can be undefined for older items or non-applicable types
   averageRating?: number;
@@ -227,9 +308,35 @@ export interface Listing {
   totalRatingSum?: number;
   searchKeywords?: string[]; // For searching listing by title
   isFeatured?: boolean;
+  isActive?: boolean;
   storeId?: string;
   barcode?: string; // Barcode for POS scanning
-  // Optional precise location fields for where the item/service is based
+  
+  // Enhanced location and contact information
+  location?: LocationInfo;
+  contactInfo?: ContactInfo;
+  
+  // Property type and specific details
+  propertyType?: PropertyType;
+  houseDetails?: HouseDetails;
+  carDetails?: CarDetails;
+  
+  // Rental specific fields
+  rentalPeriod?: 'hourly' | 'daily' | 'weekly' | 'monthly' | 'yearly';
+  minimumRentalPeriod?: number; // in days/hours depending on rentalPeriod
+  maximumRentalPeriod?: number;
+  availableFrom?: any; // Firestore Timestamp or ISO string
+  availableUntil?: any; // Firestore Timestamp or ISO string
+  securityDeposit?: number;
+  
+  // Swap specific fields
+  swapPreferences?: string[]; // What they're looking to swap for
+  swapValue?: number; // Estimated value for fair trades
+  
+  // Additional images for properties
+  additionalImages?: string[];
+  
+  // Legacy location fields (kept for backward compatibility)
   lat?: number;
   lng?: number;
   addressLabel?: string; // reverse-geocoded human-readable label
@@ -472,10 +579,26 @@ export interface SwapRequest {
   toListingId: string;
   fromListingTitle: string;
   toListingTitle: string;
-  status: 'pending' | 'accepted' | 'rejected' | 'completed';
+  status: 'pending' | 'accepted' | 'rejected' | 'completed' | 'cancelled';
   message?: string;
   createdAt: any;
   updatedAt: any;
+  
+  // Enhanced meeting and location features
+  meetingLocation?: LocationInfo;
+  proposedMeetingTime?: any; // Firestore Timestamp or ISO string
+  actualMeetingTime?: any; // Confirmed meeting time
+  meetingNotes?: string;
+  swapCompletedAt?: any; // When items were actually exchanged
+  
+  // Contact preferences for coordination
+  preferredContactMethod?: 'chat' | 'phone' | 'whatsapp' | 'email';
+  urgency?: 'low' | 'medium' | 'high';
+  
+  // Additional swap terms
+  additionalTerms?: string;
+  swapDuration?: number; // In days, for temporary swaps
+  isPermanentSwap?: boolean;
 }
 
 export interface RentalRequest {
