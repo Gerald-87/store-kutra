@@ -1,0 +1,31 @@
+KUTRA App Icon Specifications
+==============================
+
+Design Elements:
+- Background: Circular gradient from #8B4513 to #CD853F (brown gradient)
+- Size: 1024x1024px for high resolution
+- Store Icon: White storefront symbol with brown details at top center
+- Text: "KUTRA" in white, bold, sans-serif font (120px)
+- Tagline: "Trade meets AI" in smaller white text (32px) below main text
+- Style: Modern, clean, professional
+
+Colors:
+- Primary: #8B4513 (Saddle Brown)
+- Secondary: #A0522D (Sienna)
+- Accent: #CD853F (Peru)
+- Text: #FFFFFF (White)
+- Highlight: rgba(255,255,255,0.9)
+
+Icon Sizes Needed:
+- 1024x1024 (App Store)
+- 512x512 (Google Play)
+- 180x180 (iOS)
+- 192x192 (Android)
+- 128x128 (Android)
+- 96x96 (Android)
+- 72x72 (Android)
+- 48x48 (Android)
+- 36x36 (Android)
+
+Usage:
+This icon will appear on users' home screens when they install KUTRA from the app store. The design reflects the marketplace/trading nature of the app with professional branding.

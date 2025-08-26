@@ -153,14 +153,14 @@ const RegisterScreen: React.FC = () => {
                 <Ionicons name="storefront" size={28} color="#8B4513" />
               </View>
               <Text style={styles.logoText}>KUTRA</Text>
-              <Text style={styles.tagline}>Campus Marketplace</Text>
+              <Text style={styles.tagline}>Where Trade meets AI</Text>
             </View>
           </View>
 
           {/* Welcome Section */}
           <View style={styles.welcomeSection}>
             <Text style={styles.welcomeTitle}>Create Account</Text>
-            <Text style={styles.welcomeSubtitle}>Join the campus marketplace</Text>
+            <Text style={styles.welcomeSubtitle}>Join where Trade meets AI</Text>
           </View>
 
           {/* Form */}

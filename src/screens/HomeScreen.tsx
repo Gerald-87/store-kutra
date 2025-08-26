@@ -29,7 +29,6 @@ import HeroCarousel from '../components/HeroCarousel';
 import StoreCard from '../components/StoreCard';
 import LocationService, { LocationData } from '../services/LocationService';
 import NotificationService, { NotificationData } from '../services/NotificationService';
-import NotificationPopup from '../components/NotificationPopup';
 
 type HomeScreenNavigationProp = StackNavigationProp<HomeStackParamList, 'HomeMain'>;
 
@@ -41,7 +40,6 @@ const HomeScreen: React.FC = () => {
   const [currentLocation, setCurrentLocation] = useState<LocationData | null>(null);
   const [locationLoading, setLocationLoading] = useState(false);
   const [unreadNotifications, setUnreadNotifications] = useState(0);
-  const [showNotificationPopup, setShowNotificationPopup] = useState(false);
   const [selectedCategory, setSelectedCategory] = useState<ListingCategory | null>(null);
   const [filteredItems, setFilteredItems] = useState<Listing[]>([]);
   const [filteredStores, setFilteredStores] = useState<Store[]>([]);
@@ -389,7 +387,10 @@ const HomeScreen: React.FC = () => {
             {user && (
               <TouchableOpacity 
                 style={styles.notificationButton}
-                onPress={() => setShowNotificationPopup(true)}
+                onPress={() => {
+                  console.log('HomeScreen: Navigating to NotificationScreen');
+                  navigation.getParent()?.getParent()?.navigate('Notifications');
+                }}
               >
                 <Ionicons name="notifications-outline" size={24} color="#8B4513" />
                 {unreadNotifications > 0 && (
@@ -550,38 +551,6 @@ const HomeScreen: React.FC = () => {
           )}
         </View>
     </ScrollView>
-    
-    {/* Notification Popup */}
-    <NotificationPopup
-      visible={showNotificationPopup}
-      onClose={() => {
-        console.log('HomeScreen: Closing notification popup');
-        setShowNotificationPopup(false);
-      }}
-      onNotificationsUpdate={(unreadCount) => {
-        console.log('HomeScreen: Notification update from popup - unread count:', unreadCount);
-        setUnreadNotifications(unreadCount);
-      }}
-      onNotificationPress={(notification) => {
-        console.log('HomeScreen: Notification pressed:', notification.type);
-        // Handle navigation based on notification type
-        switch (notification.type) {
-          case 'order':
-            if (notification.data?.orderId) {
-              // Navigate to order details or order list
-            }
-            break;
-          case 'product':
-            // Navigate to product details or product list
-            break;
-          case 'message':
-            navigation.getParent()?.navigate('Chat');
-            break;
-          default:
-            break;
-        }
-      }}
-    />
     </SafeAreaView>
   );
 };

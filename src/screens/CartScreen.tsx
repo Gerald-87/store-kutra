@@ -7,7 +7,6 @@ import {
   StyleSheet,
   Image,
   Alert,
-  SafeAreaView,
   StatusBar,
 } from 'react-native';
 import { useDispatch, useSelector } from 'react-redux';
@@ -169,40 +168,25 @@ const CartScreen: React.FC = () => {
 
   if (items.length === 0) {
     return (
-      <SafeAreaView style={styles.container}>
+      <View style={styles.container}>
         <StatusBar barStyle="dark-content" backgroundColor="#FFFFFF" />
-        {/* Header */}
-        <View style={styles.header}>
-          <TouchableOpacity 
-            style={styles.backButton}
-            onPress={() => navigation.goBack()}
-          >
-            <Ionicons name="arrow-back" size={24} color="#2D1810" />
-          </TouchableOpacity>
-          <Text style={styles.headerTitle}>Shopping Cart</Text>
-          <View style={styles.placeholder} />
-        </View>
         {renderEmptyCart()}
-      </SafeAreaView>
+      </View>
     );
   }
 
   return (
-    <SafeAreaView style={styles.container}>
+    <View style={styles.container}>
       <StatusBar barStyle="dark-content" backgroundColor="#FFFFFF" />
-      {/* Header */}
-      <View style={styles.header}>
-        <TouchableOpacity 
-          style={styles.backButton}
-          onPress={() => navigation.goBack()}
-        >
-          <Ionicons name="arrow-back" size={24} color="#2D1810" />
-        </TouchableOpacity>
-        <Text style={styles.headerTitle}>Shopping Cart</Text>
-        <TouchableOpacity onPress={handleClearCart}>
-          <Text style={styles.clearAllText}>Clear All</Text>
-        </TouchableOpacity>
-      </View>
+      
+      {/* Clear All Button */}
+      {items.length > 0 && (
+        <View style={styles.actionContainer}>
+          <TouchableOpacity onPress={handleClearCart} style={styles.clearAllButton}>
+            <Text style={styles.clearAllText}>Clear All</Text>
+          </TouchableOpacity>
+        </View>
+      )}
 
       {/* Cart Items */}
       <FlatList
@@ -248,7 +232,7 @@ const CartScreen: React.FC = () => {
           <Text style={styles.secureText}>Secure Checkout</Text>
         </View>
       </View>
-    </SafeAreaView>
+    </View>
   );
 };
 
@@ -257,28 +241,17 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: '#F7F3F0',
   },
-  header: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
+  actionContainer: {
     backgroundColor: '#FFFFFF',
     paddingHorizontal: 16,
     paddingVertical: 12,
     borderBottomWidth: 1,
     borderBottomColor: '#E8E2DD',
+    alignItems: 'flex-end',
   },
-  backButton: {
-    padding: 8,
-  },
-  headerTitle: {
-    fontSize: 18,
-    fontWeight: '700',
-    color: '#2D1810',
-    flex: 1,
-    textAlign: 'center',
-  },
-  placeholder: {
-    width: 40,
+  clearAllButton: {
+    paddingHorizontal: 12,
+    paddingVertical: 6,
   },
   clearAllText: {
     color: '#EF4444',

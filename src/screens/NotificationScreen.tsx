@@ -68,8 +68,43 @@ const NotificationScreen: React.FC = () => {
     setRefreshing(false);
   };
 
+  const handleMarkAllAsRead = async () => {
+    if (!user?.uid) return;
+    
+    try {
+      await NotificationService.getInstance().markAllAsRead(user.uid);
+    } catch (error) {
+      console.error('Error marking all notifications as read:', error);
+      Alert.alert('Error', 'Failed to mark notifications as read');
+    }
+  };
+
+  const handleClearAll = async () => {
+    if (!user?.uid) return;
+    
+    Alert.alert(
+      'Clear All Notifications',
+      'Are you sure you want to permanently delete all notifications? This action cannot be undone.',
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Clear All',
+          style: 'destructive',
+          onPress: async () => {
+            try {
+              await NotificationService.getInstance().clearAllNotifications(user.uid);
+            } catch (error) {
+              console.error('Error clearing all notifications:', error);
+              Alert.alert('Error', 'Failed to clear notifications');
+            }
+          },
+        },
+      ]
+    );
+  };
+
   const handleNotificationPress = (notification: NotificationData) => {
-    if (!notification || typeof notification !== 'object') {
+    if (!notification || !notification.id) {
       console.warn('Notification object is invalid:', notification);
       return;
     }
@@ -248,13 +283,22 @@ const NotificationScreen: React.FC = () => {
           <Ionicons name="arrow-back" size={24} color="#2D1810" />
         </TouchableOpacity>
         <Text style={styles.headerTitle}>Notifications</Text>
-        <View style={styles.headerRight}>
+        <View style={styles.headerActions}>
           {notifications.filter(n => !n.read).length > 0 && (
-            <View style={styles.unreadBadge}>
-              <Text style={styles.unreadBadgeText}>
-                {notifications.filter(n => !n.read).length}
-              </Text>
-            </View>
+            <TouchableOpacity 
+              style={styles.markAllButton}
+              onPress={handleMarkAllAsRead}
+            >
+              <Text style={styles.markAllText}>Mark All Read</Text>
+            </TouchableOpacity>
+          )}
+          {notifications.length > 0 && (
+            <TouchableOpacity 
+              style={styles.clearAllButton}
+              onPress={handleClearAll}
+            >
+              <Text style={styles.clearAllText}>Clear All</Text>
+            </TouchableOpacity>
           )}
         </View>
       </View>
@@ -305,22 +349,34 @@ const styles = StyleSheet.create({
     fontSize: 18,
     fontWeight: '700',
     color: '#2D1810',
+    flex: 1,
+    textAlign: 'center',
   },
-  headerRight: {
-    width: 40,
-    alignItems: 'flex-end',
-  },
-  unreadBadge: {
-    backgroundColor: '#EF4444',
-    borderRadius: 10,
-    paddingHorizontal: 6,
-    paddingVertical: 2,
-    minWidth: 20,
+  headerActions: {
+    flexDirection: 'row',
     alignItems: 'center',
+    gap: 8,
   },
-  unreadBadgeText: {
+  markAllButton: {
+    backgroundColor: '#8B4513',
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 6,
+  },
+  markAllText: {
     color: '#FFFFFF',
-    fontSize: 12,
+    fontSize: 11,
+    fontWeight: '600',
+  },
+  clearAllButton: {
+    backgroundColor: '#EF4444',
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 6,
+  },
+  clearAllText: {
+    color: '#FFFFFF',
+    fontSize: 11,
     fontWeight: '600',
   },
   listContainer: {

@@ -14,6 +14,7 @@ import { useNavigation, CompositeNavigationProp } from '@react-navigation/native
 import { Ionicons } from '@expo/vector-icons';
 import { AppDispatch, RootState } from '../store';
 import { logoutUser } from '../store/slices/authSlice';
+import { fetchFavorites } from '../store/slices/favoritesSlice';
 import { ProfileStackParamList, MainTabParamList, RootStackParamList } from '../navigation/AppNavigator';
 import { StackNavigationProp } from '@react-navigation/stack';
 import { BottomTabNavigationProp } from '@react-navigation/bottom-tabs';
@@ -34,14 +35,15 @@ const ProfileScreen: React.FC = () => {
   const navigation = useNavigation<ProfileScreenNavigationProp>();
   const auth = useSelector((state: RootState) => state.auth) as any;
   const cart = useSelector((state: RootState) => state.cart) as any;
+  const favorites = useSelector((state: RootState) => state.favorites) as any;
   
   const user = auth?.user;
   const totalItems = cart?.totalItems || 0;
+  const favoritesCount = favorites?.items?.length || 0;
 
   // State for user statistics - different for store owners vs customers
   const [stats, setStats] = useState({
     orders: 0,
-    favorites: 0,
     ...(user?.role !== 'Store Owner' && {
       swapListings: 0,
       rentalListings: 0,
@@ -55,6 +57,10 @@ const ProfileScreen: React.FC = () => {
   useEffect(() => {
     if (user?.uid) {
       loadUserStats();
+      // Load favorites to get the count
+      if (user.role !== 'Store Owner') {
+        dispatch(fetchFavorites(user.uid));
+      }
     }
   }, [user]);
 
@@ -103,7 +109,6 @@ const ProfileScreen: React.FC = () => {
       
       const newStats: any = {
         orders: results[0].size,
-        favorites: 0, // TODO: Implement favorites collection
       };
       
       // Add customer-specific stats only for non-store owners
@@ -286,10 +291,10 @@ const ProfileScreen: React.FC = () => {
           <>
             <View style={styles.statDivider} />
             <View style={styles.statItem}>
-              {isLoadingStats ? (
+              {isLoadingStats || favorites.isLoading ? (
                 <ActivityIndicator size="small" color="#8B4513" />
               ) : (
-                <Text style={styles.statValue}>{stats.favorites}</Text>
+                <Text style={styles.statValue}>{favoritesCount}</Text>
               )}
               <Text style={styles.statLabel}>Favorites</Text>
             </View>
@@ -397,8 +402,9 @@ const ProfileScreen: React.FC = () => {
         <Text style={styles.appName}>KUTRA</Text>
         <Text style={styles.appVersion}>Version 1.0.0</Text>
         <Text style={styles.appDescription}>
-          Your campus marketplace for buying and selling
+          Your marketplace where Trade meets AI
         </Text>
+        <Text style={styles.poweredByText}>Powered by Gerald Limbando</Text>
       </View>
 
       {/* Logout Button */}
@@ -643,6 +649,14 @@ const styles = StyleSheet.create({
     color: '#8B7355',
     textAlign: 'center',
     lineHeight: 20,
+  },
+  poweredByText: {
+    fontSize: 12,
+    color: '#8B7355',
+    textAlign: 'center',
+    marginTop: 8,
+    fontStyle: 'italic',
+    opacity: 0.8,
   },
   logoutContainer: {
     backgroundColor: '#FFFFFF',

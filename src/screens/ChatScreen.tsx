@@ -8,15 +8,19 @@ import {
   Image,
   RefreshControl,
   Alert,
+  ActivityIndicator,
+  SafeAreaView,
+  StatusBar,
 } from 'react-native';
 import { useDispatch, useSelector } from 'react-redux';
-import { useNavigation } from '@react-navigation/native';
+import { useNavigation, useFocusEffect } from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
 import { AppDispatch, RootState } from '../store';
 import { fetchConversations } from '../store/slices/chatSlice';
 import { Message } from '../types';
 import { StackNavigationProp } from '@react-navigation/stack';
 import { RootStackParamList } from '../navigation/AppNavigator';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 type ChatScreenNavigationProp = StackNavigationProp<RootStackParamList>;
 
@@ -32,11 +36,22 @@ interface ConversationPreview {
 const ChatScreen: React.FC = () => {
   const dispatch = useDispatch<AppDispatch>();
   const navigation = useNavigation<ChatScreenNavigationProp>();
+  const insets = useSafeAreaInsets();
   const { user } = useSelector((state: RootState) => state.auth) as any;
   const { conversations, isLoading } = useSelector((state: RootState) => state.chat) as any;
   
   const [conversationPreviews, setConversationPreviews] = useState<ConversationPreview[]>([]);
   const [refreshing, setRefreshing] = useState(false);
+  const [initialLoading, setInitialLoading] = useState(true);
+
+  // Load conversations when screen comes into focus
+  useFocusEffect(
+    React.useCallback(() => {
+      if (user?.uid) {
+        loadConversations();
+      }
+    }, [user])
+  );
 
   useEffect(() => {
     if (user?.uid) {
@@ -47,6 +62,7 @@ const ChatScreen: React.FC = () => {
   useEffect(() => {
     if (conversations && user?.uid) {
       generateConversationPreviews();
+      setInitialLoading(false);
     }
   }, [conversations, user]);
 
@@ -68,7 +84,10 @@ const ChatScreen: React.FC = () => {
   };
 
   const generateConversationPreviews = () => {
-    if (!conversations || !user?.uid) return;
+    if (!conversations || !user?.uid) {
+      setConversationPreviews([]);
+      return;
+    }
 
     const previews: ConversationPreview[] = [];
     
@@ -92,6 +111,9 @@ const ChatScreen: React.FC = () => {
         ? lastMessage.toUserName 
         : lastMessage.fromUserName;
       
+      // Skip if we can't determine the other user
+      if (!otherUserId || !otherUserName) return;
+      
       // Count unread messages
       const unreadCount = sortedMessages.filter(
         msg => msg.toUserId === user.uid && !msg.isRead
@@ -107,7 +129,7 @@ const ChatScreen: React.FC = () => {
       });
     });
     
-    // Sort by last message timestamp
+    // Sort by last message timestamp (most recent first)
     previews.sort((a, b) => {
       const timeA = new Date(a.lastMessage.timestamp).getTime();
       const timeB = new Date(b.lastMessage.timestamp).getTime();
@@ -154,7 +176,7 @@ const ChatScreen: React.FC = () => {
       <View style={styles.avatarContainer}>
         <Image
           source={{
-            uri: 'https://placehold.co/50x50.png?text=' + item.otherUserName.charAt(0)
+            uri: 'https://placehold.co/50x50.png?text=' + (item.otherUserName?.charAt(0) || 'U')
           }}
           style={styles.avatar}
         />
@@ -170,14 +192,14 @@ const ChatScreen: React.FC = () => {
       <View style={styles.conversationContent}>
         <View style={styles.conversationHeader}>
           <Text style={styles.userName} numberOfLines={1}>
-            {item.otherUserName}
+            {item.otherUserName || 'Unknown User'}
           </Text>
           <Text style={styles.timestamp}>
             {formatTimestamp(item.lastMessage.timestamp)}
           </Text>
         </View>
         
-        {item.listingId && (
+        {item.listingId && item.lastMessage.listingTitle && (
           <Text style={styles.listingTitle} numberOfLines={1}>
             📦 {item.lastMessage.listingTitle}
           </Text>
@@ -190,7 +212,7 @@ const ChatScreen: React.FC = () => {
           ]}
           numberOfLines={2}
         >
-          {item.lastMessage.content}
+          {item.lastMessage.content || 'No message content'}
         </Text>
       </View>
       
@@ -200,36 +222,61 @@ const ChatScreen: React.FC = () => {
 
   if (!user) {
     return (
-      <View style={styles.container}>
+      <SafeAreaView style={[styles.container, { paddingTop: insets.top }]}>
+        <StatusBar barStyle="dark-content" backgroundColor="#FFFFFF" />
         <View style={styles.emptyState}>
-          <Ionicons name="log-in-outline" size={64} color="#8B7355" />
+          <Ionicons name="log-in-outline" size={64} color="#D2B48C" />
           <Text style={styles.emptyTitle}>Login Required</Text>
           <Text style={styles.emptyText}>
             Please login to view your conversations
           </Text>
         </View>
-      </View>
+      </SafeAreaView>
     );
   }
 
+  const totalUnreadCount = conversationPreviews.reduce((sum, conv) => sum + conv.unreadCount, 0);
+
   return (
-    <View style={styles.container}>
+    <SafeAreaView style={[styles.container, { paddingTop: insets.top }]}>
+      <StatusBar barStyle="dark-content" backgroundColor="#FFFFFF" />
+      
       {/* Header */}
       <View style={styles.header}>
         <Text style={styles.headerTitle}>Messages</Text>
-        <TouchableOpacity style={styles.refreshButton} onPress={onRefresh}>
-          <Ionicons name="refresh" size={24} color="#8B4513" />
-        </TouchableOpacity>
+        <View style={styles.headerActions}>
+          {totalUnreadCount > 0 && (
+            <View style={styles.headerUnreadBadge}>
+              <Text style={styles.headerUnreadText}>
+                {totalUnreadCount > 99 ? '99+' : totalUnreadCount}
+              </Text>
+            </View>
+          )}
+          <TouchableOpacity style={styles.refreshButton} onPress={onRefresh}>
+            <Ionicons name="refresh" size={24} color="#8B4513" />
+          </TouchableOpacity>
+        </View>
       </View>
 
-      {conversationPreviews.length === 0 ? (
+      {initialLoading && isLoading ? (
+        <View style={styles.loadingState}>
+          <ActivityIndicator size="large" color="#8B4513" />
+          <Text style={styles.loadingText}>Loading conversations...</Text>
+        </View>
+      ) : conversationPreviews.length === 0 ? (
         <View style={styles.emptyState}>
-          <Ionicons name="chatbubbles-outline" size={64} color="#8B7355" />
+          <Ionicons name="chatbubbles-outline" size={64} color="#D2B48C" />
           <Text style={styles.emptyTitle}>No Conversations</Text>
           <Text style={styles.emptyText}>
             Start chatting with sellers and buyers.{"\n"}
             Your conversations will appear here.
           </Text>
+          <TouchableOpacity 
+            style={styles.exploreButton}
+            onPress={() => navigation.navigate('Home' as any)}
+          >
+            <Text style={styles.exploreButtonText}>Start Exploring</Text>
+          </TouchableOpacity>
         </View>
       ) : (
         <FlatList
@@ -246,9 +293,10 @@ const ChatScreen: React.FC = () => {
             />
           }
           showsVerticalScrollIndicator={false}
+          ItemSeparatorComponent={() => <View style={{ height: 1, backgroundColor: '#E8E2DD' }} />}
         />
       )}
-    </View>
+    </SafeAreaView>
   );
 };
 
@@ -262,21 +310,47 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     alignItems: 'center',
     backgroundColor: '#FFFFFF',
-    paddingHorizontal: 20,
-    paddingVertical: 16,
-    shadowColor: '#8B4513',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-    elevation: 3,
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    borderBottomWidth: 1,
+    borderBottomColor: '#E8E2DD',
   },
   headerTitle: {
-    fontSize: 20,
+    fontSize: 18,
     fontWeight: '700',
     color: '#2D1810',
   },
+  headerActions: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  headerUnreadBadge: {
+    backgroundColor: '#DC2626',
+    borderRadius: 10,
+    minWidth: 20,
+    height: 20,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  headerUnreadText: {
+    color: '#FFFFFF',
+    fontSize: 12,
+    fontWeight: '700',
+  },
   refreshButton: {
     padding: 4,
+  },
+  loadingState: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingHorizontal: 40,
+  },
+  loadingText: {
+    marginTop: 16,
+    fontSize: 16,
+    color: '#8B7355',
   },
   conversationsList: {
     flex: 1,
@@ -285,10 +359,8 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     backgroundColor: '#FFFFFF',
-    paddingHorizontal: 20,
-    paddingVertical: 16,
-    borderBottomWidth: 1,
-    borderBottomColor: '#E8E2DD',
+    paddingHorizontal: 16,
+    paddingVertical: 12,
   },
   avatarContainer: {
     position: 'relative',
@@ -368,9 +440,21 @@ const styles = StyleSheet.create({
   },
   emptyText: {
     fontSize: 16,
-    color: '#8B7355',
+    color: '#6B7280',
     textAlign: 'center',
-    lineHeight: 24,
+    lineHeight: 22,
+    marginBottom: 24,
+  },
+  exploreButton: {
+    backgroundColor: '#8B4513',
+    paddingHorizontal: 24,
+    paddingVertical: 12,
+    borderRadius: 8,
+  },
+  exploreButtonText: {
+    color: '#FFFFFF',
+    fontSize: 16,
+    fontWeight: '600',
   },
 });
 

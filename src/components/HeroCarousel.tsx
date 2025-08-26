@@ -173,7 +173,7 @@ const HeroCarousel: React.FC = () => {
         <View style={styles.placeholderSlide}>
           <Ionicons name="storefront" size={48} color="#FFFFFF" style={{ marginBottom: 12 }} />
           <Text style={styles.placeholderText}>Welcome to KUTRA</Text>
-          <Text style={styles.placeholderSubtext}>Your campus marketplace</Text>
+          <Text style={styles.placeholderSubtext}>Where Trade meets AI</Text>
           <TouchableOpacity style={styles.placeholderButton}>
             <Text style={styles.placeholderButtonText}>Explore Stores</Text>
           </TouchableOpacity>

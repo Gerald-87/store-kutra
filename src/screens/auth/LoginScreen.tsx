@@ -104,7 +104,7 @@ const LoginScreen: React.FC = () => {
                 <Ionicons name="storefront" size={32} color="#8B4513" />
               </View>
               <Text style={styles.logoText}>KUTRA</Text>
-              <Text style={styles.tagline}>Campus Marketplace</Text>
+              <Text style={styles.tagline}>Where Trade meets AI</Text>
             </View>
           </View>
 

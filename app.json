@@ -4,15 +4,31 @@
     "slug": "KUTRA",
     "version": "1.0.0",
     "orientation": "portrait",
+    "icon": "./assets/icon.svg",
     "userInterfaceStyle": "light",
+    "splash": {
+      "image": "./assets/icon.svg",
+      "resizeMode": "contain",
+      "backgroundColor": "#8B4513"
+    },
+    "assetBundlePatterns": [
+      "**/*"
+    ],
     "newArchEnabled": true,
     "ios": {
-      "supportsTablet": true
+      "supportsTablet": true,
+      "bundleIdentifier": "com.kutra.app"
     },
     "android": {
       "edgeToEdgeEnabled": true,
-      "package": "com.anonymous.KUTRA"
+      "package": "com.kutra.app",
+      "adaptiveIcon": {
+        "foregroundImage": "./assets/icon.svg",
+        "backgroundColor": "#8B4513"
+      }
     },
-    "web": {}
+    "web": {
+      "favicon": "./assets/icon.svg"
+    }
   }
 }

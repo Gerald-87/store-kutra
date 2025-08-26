@@ -1,6 +1,6 @@
 import * as Notifications from 'expo-notifications';
 import { Platform } from 'react-native';
-import { doc, collection, addDoc, serverTimestamp, query, where, onSnapshot, orderBy, limit, updateDoc, getDocs } from 'firebase/firestore';
+import { doc, collection, addDoc, serverTimestamp, query, where, onSnapshot, orderBy, limit, updateDoc, getDocs, deleteDoc } from 'firebase/firestore';
 import { db } from '../config/firebase';
 
 // Configure notification behavior
@@ -396,6 +396,42 @@ class NotificationService {
       await new Promise(resolve => setTimeout(resolve, 500));
     } catch (error) {
       console.error('Error marking all notifications as read:', error);
+      throw error;
+    }
+  }
+
+  // Clear all notifications for a user (permanent deletion)
+  async clearAllNotifications(userId: string) {
+    try {
+      console.log(`Starting clearAllNotifications for user: ${userId}`);
+      
+      const q = query(
+        collection(db, 'notifications'),
+        where('userId', '==', userId)
+      );
+      
+      const snapshot = await getDocs(q);
+      console.log(`Found ${snapshot.size} notifications to delete`);
+      
+      if (snapshot.empty) {
+        console.log('No notifications found to delete');
+        return;
+      }
+      
+      const batch: Promise<void>[] = [];
+      
+      snapshot.forEach((doc) => {
+        console.log(`Deleting notification ${doc.id}`);
+        batch.push(deleteDoc(doc.ref));
+      });
+      
+      await Promise.all(batch);
+      console.log(`Successfully deleted ${batch.length} notifications for user ${userId}`);
+      
+      // Give a small delay to ensure Firestore updates are propagated
+      await new Promise(resolve => setTimeout(resolve, 500));
+    } catch (error) {
+      console.error('Error clearing all notifications:', error);
       throw error;
     }
   }

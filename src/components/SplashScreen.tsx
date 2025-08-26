@@ -91,7 +91,7 @@ const SplashScreen: React.FC<SplashScreenProps> = ({ onFinish }) => {
           ]}
         >
           <Text style={styles.appName}>KUTRA</Text>
-          <Text style={styles.tagline}>Campus Marketplace</Text>
+          <Text style={styles.tagline}>Where Trade meets AI</Text>
           <Text style={styles.subtitle}>Shop • Sell • Connect</Text>
         </Animated.View>
       </Animated.View>
@@ -120,6 +120,7 @@ const SplashScreen: React.FC<SplashScreenProps> = ({ onFinish }) => {
           />
         </View>
         <Text style={styles.loadingText}>Loading your marketplace...</Text>
+        <Text style={styles.poweredByText}>Powered by Gerald Limbando</Text>
       </Animated.View>
     </View>
   );
@@ -172,26 +173,33 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   appName: {
-    fontSize: 48,
+    fontSize: 56,
     fontWeight: '900',
     color: '#FFFFFF',
-    letterSpacing: -1,
-    marginBottom: 8,
-    textShadowColor: 'rgba(0, 0, 0, 0.3)',
-    textShadowOffset: { width: 0, height: 2 },
-    textShadowRadius: 4,
+    letterSpacing: -2,
+    marginBottom: 12,
+    textShadowColor: 'rgba(0, 0, 0, 0.4)',
+    textShadowOffset: { width: 0, height: 3 },
+    textShadowRadius: 6,
+    fontFamily: 'System',
   },
   tagline: {
-    fontSize: 20,
-    fontWeight: '600',
-    color: '#E0E7FF',
-    marginBottom: 8,
+    fontSize: 22,
+    fontWeight: '700',
+    color: '#F0F9FF',
+    marginBottom: 10,
+    textShadowColor: 'rgba(0, 0, 0, 0.3)',
+    textShadowOffset: { width: 0, height: 1 },
+    textShadowRadius: 3,
   },
   subtitle: {
-    fontSize: 16,
-    fontWeight: '400',
-    color: '#C7D2FE',
-    letterSpacing: 2,
+    fontSize: 18,
+    fontWeight: '500',
+    color: '#E0E7FF',
+    letterSpacing: 1.5,
+    textShadowColor: 'rgba(0, 0, 0, 0.2)',
+    textShadowOffset: { width: 0, height: 1 },
+    textShadowRadius: 2,
   },
   loadingContainer: {
     position: 'absolute',
@@ -217,6 +225,13 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: '#E0E7FF',
     fontWeight: '500',
+  },
+  poweredByText: {
+    fontSize: 12,
+    color: '#C7D2FE',
+    fontWeight: '400',
+    marginTop: 8,
+    fontStyle: 'italic',
   },
 });
 
