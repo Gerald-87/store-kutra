@@ -2,16 +2,24 @@ import * as Notifications from 'expo-notifications';
 import { Platform } from 'react-native';
 import { doc, collection, addDoc, serverTimestamp, query, where, onSnapshot, orderBy, limit, updateDoc, getDocs, deleteDoc } from 'firebase/firestore';
 import { db } from '../config/firebase';
+import Constants from 'expo-constants';
 
-// Configure notification behavior
-Notifications.setNotificationHandler({
-  handleNotification: async () => ({
-    shouldPlaySound: true,
-    shouldSetBadge: true,
-    shouldShowBanner: true,
-    shouldShowList: true,
-  }),
-});
+// Check if we're running in Expo Go
+const isExpoGo = Constants.appOwnership === 'expo';
+
+// Configure notification behavior only if not in Expo Go
+if (!isExpoGo) {
+  Notifications.setNotificationHandler({
+    handleNotification: async () => ({
+      shouldPlaySound: true,
+      shouldSetBadge: true,
+      shouldShowBanner: true,
+      shouldShowList: true,
+    }),
+  });
+} else {
+  console.warn('Push notifications are not available in Expo Go. Use a development build for full functionality.');
+}
 
 export interface NotificationData {
   id?: string;
@@ -38,6 +46,12 @@ class NotificationService {
   // Initialize notifications
   async initialize() {
     try {
+      // Skip notification initialization in Expo Go
+      if (isExpoGo) {
+        console.warn('Skipping notification initialization in Expo Go. Use development build for push notifications.');
+        return;
+      }
+
       if (Platform.OS === 'android') {
         await Notifications.setNotificationChannelAsync('default', {
           name: 'default',
@@ -74,12 +88,19 @@ class NotificationService {
       console.log('Notification service initialized successfully');
     } catch (error) {
       console.error('Error initializing notification service:', error);
+      // Don't throw error to avoid app crashes in Expo Go
     }
   }
 
   // Send local notification
   async sendLocalNotification(notification: NotificationData) {
     try {
+      // Skip local notifications in Expo Go
+      if (isExpoGo) {
+        console.log('Local notification skipped in Expo Go:', notification.title);
+        return;
+      }
+
       await Notifications.scheduleNotificationAsync({
         content: {
           title: notification.title,
@@ -92,6 +113,7 @@ class NotificationService {
       });
     } catch (error) {
       console.error('Error sending local notification:', error);
+      // Don't throw error to avoid app crashes
     }
   }
 

@@ -1,0 +1,9 @@
+android/.gradle/
+android/build/
+android/app/build/
+.expo/
+node_modules/
+*.log
+npm-debug.*
+yarn-debug.*
+yarn-error.*

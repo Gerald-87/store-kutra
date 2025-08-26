@@ -21,6 +21,7 @@ import { RootStackParamList } from '../navigation/AppNavigator';
 import { StackNavigationProp } from '@react-navigation/stack';
 import { RatingDisplay } from '../components/Rating';
 import RatingModal from '../components/RatingModal';
+import { Listing, ListingType } from '../types';
 import { collection, addDoc, doc, updateDoc, increment } from 'firebase/firestore';
 import { db } from '../config/firebase';
 
@@ -185,6 +186,7 @@ const ProductDetailScreen: React.FC = () => {
   }
 
   const isOwnListing = user?.uid === currentListing.sellerId;
+  const isProductForSale = currentListing.type === ListingType.SELL;
 
   return (
     <View style={styles.container}>
@@ -238,7 +240,15 @@ const ProductDetailScreen: React.FC = () => {
           <Text style={styles.productTitle}>{currentListing.title}</Text>
           
           <View style={styles.priceContainer}>
-            <Text style={styles.price}>K{currentListing.price.toFixed(2)}</Text>
+            <Text style={styles.price}>
+              K{currentListing.price.toFixed(2)}
+              {currentListing.type === ListingType.RENT && currentListing.rentalPeriod && (
+                <Text>/{currentListing.rentalPeriod}</Text>
+              )}
+              {currentListing.type === ListingType.SWAP && (
+                <Text> (Est. Value)</Text>
+              )}
+            </Text>
             {currentListing.condition && (
               <View style={styles.conditionContainer}>
                 <Text style={styles.conditionText}>{currentListing.condition}</Text>
@@ -285,10 +295,115 @@ const ProductDetailScreen: React.FC = () => {
             )}
           </TouchableOpacity>
 
+          {/* Rental specific info */}
+          {currentListing.type === ListingType.RENT && (
+            <View style={styles.rentalInfoContainer}>
+              <Text style={styles.sectionTitle}>Rental Information</Text>
+              {currentListing.rentalPeriod && (
+                <Text style={styles.infoText}>Period: {currentListing.rentalPeriod}</Text>
+              )}
+              {currentListing.minimumRentalPeriod && (
+                <Text style={styles.infoText}>Minimum: {currentListing.minimumRentalPeriod} {currentListing.rentalPeriod || 'days'}</Text>
+              )}
+              {currentListing.securityDeposit && (
+                <Text style={styles.infoText}>Security Deposit: K{currentListing.securityDeposit.toFixed(2)}</Text>
+              )}
+            </View>
+          )}
+
+          {/* Swap specific info */}
+          {currentListing.type === ListingType.SWAP && (
+            <View style={styles.swapInfoContainer}>
+              <Text style={styles.sectionTitle}>Swap Information</Text>
+              {currentListing.swapValue && (
+                <Text style={styles.infoText}>Estimated Value: K{currentListing.swapValue.toFixed(2)}</Text>
+              )}
+              {currentListing.swapPreferences && currentListing.swapPreferences.length > 0 && (
+                <View>
+                  <Text style={styles.infoText}>Looking for:</Text>
+                  <Text style={styles.preferencesText}>{String(currentListing.swapPreferences.join(', '))}</Text>
+                </View>
+              )}
+            </View>
+          )}
+
+          {/* Property type info */}
+          {currentListing.propertyType && (
+            <View style={styles.propertyInfoContainer}>
+              <Text style={styles.sectionTitle}>Property Details</Text>
+              <Text style={styles.infoText}>Type: {String(currentListing.propertyType)}</Text>
+              
+              {/* House specific details */}
+              {currentListing.houseDetails && (
+                <View>
+                  {currentListing.houseDetails.bedrooms && (
+                    <Text style={styles.infoText}>Bedrooms: {String(currentListing.houseDetails.bedrooms)}</Text>
+                  )}
+                  {currentListing.houseDetails.bathrooms && (
+                    <Text style={styles.infoText}>Bathrooms: {String(currentListing.houseDetails.bathrooms)}</Text>
+                  )}
+                  {currentListing.houseDetails.squareFootage && (
+                    <Text style={styles.infoText}>Area: {String(currentListing.houseDetails.squareFootage)} sq ft</Text>
+                  )}
+                  {currentListing.houseDetails.furnished !== undefined && (
+                    <Text style={styles.infoText}>Furnished: {currentListing.houseDetails.furnished ? 'Yes' : 'No'}</Text>
+                  )}
+                </View>
+              )}
+              
+              {/* Car specific details */}
+              {currentListing.carDetails && (
+                <View>
+                  {currentListing.carDetails.make && currentListing.carDetails.model && (
+                    <Text style={styles.infoText}>{String(currentListing.carDetails.make)} {String(currentListing.carDetails.model)}</Text>
+                  )}
+                  {currentListing.carDetails.year && (
+                    <Text style={styles.infoText}>Year: {String(currentListing.carDetails.year)}</Text>
+                  )}
+                  {currentListing.carDetails.fuelType && (
+                    <Text style={styles.infoText}>Fuel: {String(currentListing.carDetails.fuelType)}</Text>
+                  )}
+                  {currentListing.carDetails.transmission && (
+                    <Text style={styles.infoText}>Transmission: {String(currentListing.carDetails.transmission)}</Text>
+                  )}
+                </View>
+              )}
+            </View>
+          )}
+
+          {/* Enhanced location */}
+          {currentListing.location && (
+            <View style={styles.locationContainer}>
+              <Text style={styles.sectionTitle}>Location</Text>
+              <View style={styles.locationRow}>
+                <Ionicons name="location-outline" size={16} color="#666" />
+                <Text style={styles.locationText}>
+                  {currentListing.location.address || ''}{currentListing.location.city ? `, ${currentListing.location.city}` : ''}
+                </Text>
+              </View>
+              {currentListing.location.landmark && (
+                <Text style={styles.infoText}>Near: {String(currentListing.location.landmark)}</Text>
+              )}
+            </View>
+          )}
+
+          {/* Contact info */}
+          {currentListing.contactInfo && (
+            <View style={styles.contactInfoContainer}>
+              <Text style={styles.sectionTitle}>Contact Information</Text>
+              {currentListing.contactInfo.preferredContactMethod && (
+                <Text style={styles.infoText}>Preferred: {String(currentListing.contactInfo.preferredContactMethod)}</Text>
+              )}
+              {currentListing.contactInfo.availableHours && (
+                <Text style={styles.infoText}>Available: {String(currentListing.contactInfo.availableHours)}</Text>
+              )}
+            </View>
+          )}
+
           {/* Description */}
           <View style={styles.descriptionContainer}>
             <Text style={styles.sectionTitle}>Description</Text>
-            <Text style={styles.description}>{currentListing.description}</Text>
+            <Text style={styles.description}>{String(currentListing.description || '')}</Text>
           </View>
 
           {/* Rating */}
@@ -317,17 +432,6 @@ const ProductDetailScreen: React.FC = () => {
               </TouchableOpacity>
             )}
           </View>
-
-          {/* Location */}
-          {currentListing.addressLabel && (
-            <View style={styles.locationContainer}>
-              <Text style={styles.sectionTitle}>Location</Text>
-              <View style={styles.locationRow}>
-                <Ionicons name="location-outline" size={16} color="#666" />
-                <Text style={styles.locationText}>{currentListing.addressLabel}</Text>
-              </View>
-            </View>
-          )}
         </View>
       </ScrollView>
 
@@ -340,8 +444,8 @@ const ProductDetailScreen: React.FC = () => {
         itemName={currentListing.title}
       />
 
-      {/* Bottom action bar */}
-      {!isOwnListing && currentListing.stock !== 0 && (
+      {/* Bottom action bar - only show for products that can be purchased */}
+      {!isOwnListing && isProductForSale && currentListing.stock !== 0 && (
         <View style={styles.bottomBar}>
           <View style={styles.quantityContainer}>
             <TouchableOpacity
@@ -575,6 +679,29 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: '#666',
     marginLeft: 6,
+  },
+  rentalInfoContainer: {
+    marginBottom: 20,
+  },
+  swapInfoContainer: {
+    marginBottom: 20,
+  },
+  propertyInfoContainer: {
+    marginBottom: 20,
+  },
+  contactInfoContainer: {
+    marginBottom: 20,
+  },
+  infoText: {
+    fontSize: 14,
+    color: '#666',
+    marginBottom: 4,
+  },
+  preferencesText: {
+    fontSize: 14,
+    color: '#8B4513',
+    fontStyle: 'italic',
+    marginLeft: 10,
   },
   bottomBar: {
     position: 'absolute',

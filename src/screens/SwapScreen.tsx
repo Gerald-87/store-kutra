@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   View,
   Text,
@@ -21,6 +21,7 @@ import { fetchListings } from '../store/slices/listingsSlice';
 import { Listing, ListingType, SwapRequest } from '../types';
 import { collection, addDoc, query, where, getDocs, orderBy, Timestamp, doc, deleteDoc, updateDoc } from 'firebase/firestore';
 import { db } from '../config/firebase';
+import AuthGuard from '../components/AuthGuard';
 
 const SwapScreen: React.FC = () => {
   const navigation = useNavigation();
@@ -44,6 +45,25 @@ const SwapScreen: React.FC = () => {
   useEffect(() => {
     loadSwapData();
   }, []);
+
+  useEffect(() => {
+    // Reset tab when user logs out and they're on a restricted tab
+    if (!user && (activeTab === 'my_swaps' || activeTab === 'requests')) {
+      setActiveTab('browse');
+      setMySwapListings([]);
+    }
+    // Clear user-specific data when logged out
+    if (!user) {
+      setMySwapListings([]);
+    }
+  }, [user, activeTab]);
+
+  const handleListingPress = (listing: Listing) => {
+    (navigation as any).navigate('ProductDetail', {
+      listingId: listing.id,
+      productId: listing.id
+    });
+  };
 
   const loadSwapData = async () => {
     setIsLoading(true);
@@ -82,8 +102,8 @@ const SwapScreen: React.FC = () => {
       
       querySnapshot.forEach((doc) => {
         const listing = { id: doc.id, ...doc.data() } as Listing;
-        // Exclude user's own listings
-        if (listing.sellerId !== user?.uid) {
+        // Exclude user's own listings and include only active listings
+        if (listing.sellerId !== user?.uid && listing.isActive !== false) {
           listings.push(listing);
         }
       });
@@ -384,7 +404,10 @@ const SwapScreen: React.FC = () => {
   };
 
   const renderSwapListing = ({ item }: { item: Listing }) => (
-    <TouchableOpacity style={styles.listingCard}>
+    <TouchableOpacity 
+      style={styles.listingCard}
+      onPress={() => handleListingPress(item)}
+    >
       <Image
         source={{
           uri: item.imageBase64
@@ -416,7 +439,7 @@ const SwapScreen: React.FC = () => {
         )}
         
         {/* Location information */}
-        {item.location && (
+        {item.location && item.location.city && (
           <View style={styles.locationContainer}>
             <Ionicons name="location-outline" size={12} color="#8B7355" />
             <Text style={styles.locationText} numberOfLines={1}>
@@ -467,7 +490,10 @@ const SwapScreen: React.FC = () => {
   );
 
   const renderMySwapListing = ({ item }: { item: Listing }) => (
-    <TouchableOpacity style={styles.listingCard}>
+    <TouchableOpacity 
+      style={styles.listingCard}
+      onPress={() => handleListingPress(item)}
+    >
       <Image
         source={{
           uri: item.imageBase64
@@ -499,7 +525,7 @@ const SwapScreen: React.FC = () => {
         )}
         
         {/* Location for my listings */}
-        {item.location && (
+        {item.location && item.location.address && (
           <View style={styles.locationContainer}>
             <Ionicons name="location-outline" size={12} color="#8B7355" />
             <Text style={styles.locationText} numberOfLines={1}>
@@ -528,7 +554,17 @@ const SwapScreen: React.FC = () => {
         
         <View style={styles.listingFooter}>
           <Text style={styles.listingDate}>
-            Posted {new Date(item.postedDate).toLocaleDateString()}
+            Posted {(() => {
+              try {
+                if (item.postedDate) {
+                  const date = new Date(item.postedDate);
+                  return !isNaN(date.getTime()) ? date.toLocaleDateString() : 'Unknown date';
+                }
+                return 'Unknown date';
+              } catch {
+                return 'Unknown date';
+              }
+            })()}
           </Text>
           <View style={styles.actionButtons}>
             <TouchableOpacity
@@ -596,7 +632,17 @@ const SwapScreen: React.FC = () => {
         )}
         
         <Text style={styles.requestDate}>
-          {new Date(item.createdAt).toLocaleDateString()}
+          {(() => {
+            try {
+              if (item.createdAt) {
+                const date = new Date(item.createdAt);
+                return !isNaN(date.getTime()) ? date.toLocaleDateString() : 'Unknown date';
+              }
+              return 'Unknown date';
+            } catch {
+              return 'Unknown date';
+            }
+          })()}
         </Text>
         
         {/* Action buttons for incoming requests */}
@@ -650,9 +696,11 @@ const SwapScreen: React.FC = () => {
             key={`swap-${activeTab}-list`}
             data={swapListings}
             renderItem={renderSwapListing}
-            keyExtractor={(item) => item.id}
+            keyExtractor={(item) => item.id || Math.random().toString()}
             contentContainerStyle={styles.listContainer}
             showsVerticalScrollIndicator={false}
+            numColumns={2}
+            columnWrapperStyle={styles.gridRow}
             refreshControl={
               <RefreshControl
                 refreshing={refreshing}
@@ -686,9 +734,11 @@ const SwapScreen: React.FC = () => {
             key={`swap-${activeTab}-list`}
             data={mySwapListings}
             renderItem={renderMySwapListing}
-            keyExtractor={(item) => item.id}
+            keyExtractor={(item) => item.id || Math.random().toString()}
             contentContainerStyle={styles.listContainer}
             showsVerticalScrollIndicator={false}
+            numColumns={2}
+            columnWrapperStyle={styles.gridRow}
             refreshControl={
               <RefreshControl
                 refreshing={refreshing}
@@ -725,7 +775,7 @@ const SwapScreen: React.FC = () => {
             key={`swap-${activeTab}-list`}
             data={swapRequests}
             renderItem={renderSwapRequest}
-            keyExtractor={(item) => item.id!}
+            keyExtractor={(item) => item.id! || Math.random().toString()}
             contentContainerStyle={styles.listContainer}
             showsVerticalScrollIndicator={false}
             refreshControl={
@@ -782,7 +832,7 @@ const SwapScreen: React.FC = () => {
       {/* Tabs */}
       <View style={styles.tabContainer}>
         <TouchableOpacity
-          style={[styles.tab, activeTab === 'browse' && styles.activeTab]}
+          style={[styles.tab, activeTab === 'browse' && styles.activeTab, !user && styles.singleTab]}
           onPress={() => setActiveTab('browse')}
         >
           <Text style={[styles.tabText, activeTab === 'browse' && styles.activeTabText]}>
@@ -790,30 +840,34 @@ const SwapScreen: React.FC = () => {
           </Text>
         </TouchableOpacity>
         
-        <TouchableOpacity
-          style={[styles.tab, activeTab === 'my_swaps' && styles.activeTab]}
-          onPress={() => setActiveTab('my_swaps')}
-        >
-          <Text style={[styles.tabText, activeTab === 'my_swaps' && styles.activeTabText]}>
-            My Items
-          </Text>
-        </TouchableOpacity>
+        {user && (
+          <TouchableOpacity
+            style={[styles.tab, activeTab === 'my_swaps' && styles.activeTab]}
+            onPress={() => setActiveTab('my_swaps')}
+          >
+            <Text style={[styles.tabText, activeTab === 'my_swaps' && styles.activeTabText]}>
+              My Items
+            </Text>
+          </TouchableOpacity>
+        )}
         
-        <TouchableOpacity
-          style={[styles.tab, activeTab === 'requests' && styles.activeTab]}
-          onPress={() => setActiveTab('requests')}
-        >
-          <Text style={[styles.tabText, activeTab === 'requests' && styles.activeTabText]}>
-            Requests
-          </Text>
-          {swapRequests.filter(r => r.toUserId === user?.uid && r.status === 'pending').length > 0 && (
-            <View style={styles.notificationBadge}>
-              <Text style={styles.notificationText}>
-                {swapRequests.filter(r => r.toUserId === user?.uid && r.status === 'pending').length}
-              </Text>
-            </View>
-          )}
-        </TouchableOpacity>
+        {user && (
+          <TouchableOpacity
+            style={[styles.tab, activeTab === 'requests' && styles.activeTab]}
+            onPress={() => setActiveTab('requests')}
+          >
+            <Text style={[styles.tabText, activeTab === 'requests' && styles.activeTabText]}>
+              Requests
+            </Text>
+            {swapRequests.filter(r => r.toUserId === user?.uid && r.status === 'pending').length > 0 && (
+              <View style={styles.notificationBadge}>
+                <Text style={styles.notificationText}>
+                  {String(swapRequests.filter(r => r.toUserId === user?.uid && r.status === 'pending').length)}
+                </Text>
+              </View>
+            )}
+          </TouchableOpacity>
+        )}
       </View>
 
       {/* Content */}
@@ -889,7 +943,7 @@ const SwapScreen: React.FC = () => {
                     )}
                   </TouchableOpacity>
                 )}
-                keyExtractor={(item) => item.id}
+                keyExtractor={(item) => item.id || Math.random().toString()}
                 scrollEnabled={false}
               />
             </View>
@@ -965,6 +1019,9 @@ const styles = StyleSheet.create({
   activeTabText: {
     color: '#8B4513',
     fontWeight: '600',
+  },
+  singleTab: {
+    flex: 1,
   },
   notificationBadge: {
     position: 'absolute',
@@ -1198,6 +1255,27 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
     paddingVertical: 60,
+  },
+  authRequiredContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingVertical: 60,
+    paddingHorizontal: 32,
+  },
+  authRequiredTitle: {
+    fontSize: 18,
+    fontWeight: '700',
+    color: '#2D1810',
+    marginTop: 16,
+    marginBottom: 8,
+    textAlign: 'center',
+  },
+  authRequiredText: {
+    fontSize: 14,
+    color: '#8B7355',
+    textAlign: 'center',
+    lineHeight: 20,
   },
   emptyTitle: {
     fontSize: 18,

@@ -300,7 +300,7 @@ const AddProductScreen: React.FC = () => {
               placeholderTextColor="#8B7355"
               maxLength={100}
             />
-            <Text style={styles.charCount}>{productForm.title.length}/100</Text>
+            <Text style={styles.charCount}>{String(productForm.title.length)}/100</Text>
           </View>
 
           <View style={styles.inputGroup}>
@@ -316,7 +316,7 @@ const AddProductScreen: React.FC = () => {
               textAlignVertical="top"
               maxLength={500}
             />
-            <Text style={styles.charCount}>{productForm.description.length}/500</Text>
+            <Text style={styles.charCount}>{String(productForm.description.length)}/500</Text>
           </View>
 
           <View style={styles.inputRow}>

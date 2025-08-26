@@ -46,6 +46,15 @@ const RentalScreen: React.FC = () => {
     loadRentalData();
   }, []);
 
+  useEffect(() => {
+    // Reset tab to browse when user logs out
+    if (!user && (activeTab === 'my_rentals' || activeTab === 'bookings')) {
+      setActiveTab('browse');
+      setMyRentalListings([]);
+      setRentalRequests([]);
+    }
+  }, [user, activeTab]);
+
   const loadRentalData = async () => {
     setIsLoading(true);
     setError(null);
@@ -83,11 +92,13 @@ const RentalScreen: React.FC = () => {
       
       querySnapshot.forEach((doc) => {
         const listing = { id: doc.id, ...doc.data() } as Listing;
-        if (listing.sellerId !== user?.uid) {
+        // Only show other people's listings, not your own, and ensure it's active
+        if (listing.sellerId !== user?.uid && listing.isActive !== false) {
           listings.push(listing);
         }
       });
       
+      console.log(`Loaded ${listings.length} rental listings from others`);
       setRentalListings(listings);
     } catch (error) {
       console.error('Error loading rental listings:', error);
@@ -95,7 +106,10 @@ const RentalScreen: React.FC = () => {
   };
 
   const loadMyRentalListings = async () => {
-    if (!user) return;
+    if (!user?.uid) {
+      console.log('No user found, skipping my rentals load');
+      return;
+    }
     
     try {
       const q = query(
@@ -109,9 +123,14 @@ const RentalScreen: React.FC = () => {
       const listings: Listing[] = [];
       
       querySnapshot.forEach((doc) => {
-        listings.push({ id: doc.id, ...doc.data() } as Listing);
+        const listing = { id: doc.id, ...doc.data() } as Listing;
+        // Double check that this listing belongs to the current user
+        if (listing.sellerId === user.uid) {
+          listings.push(listing);
+        }
       });
       
+      console.log(`Loaded ${listings.length} of your rental listings`);
       setMyRentalListings(listings);
     } catch (error) {
       console.error('Error loading my rental listings:', error);
@@ -184,6 +203,18 @@ const RentalScreen: React.FC = () => {
   };
 
   const handleDeleteListing = async (listingId: string) => {
+    if (!user?.uid) {
+      Alert.alert('Error', 'You must be logged in to delete listings');
+      return;
+    }
+
+    // Find the listing to verify ownership
+    const listingToDelete = myRentalListings.find(listing => listing.id === listingId);
+    if (!listingToDelete || listingToDelete.sellerId !== user.uid) {
+      Alert.alert('Error', 'You can only delete your own listings');
+      return;
+    }
+
     Alert.alert(
       'Delete Listing',
       'Are you sure you want to delete this rental listing?',
@@ -208,6 +239,17 @@ const RentalScreen: React.FC = () => {
   };
 
   const handleEditListing = async (listing: Listing) => {
+    if (!user?.uid) {
+      Alert.alert('Error', 'You must be logged in to edit listings');
+      return;
+    }
+
+    // Verify ownership
+    if (listing.sellerId !== user.uid) {
+      Alert.alert('Error', 'You can only edit your own listings');
+      return;
+    }
+
     // Navigate to edit screen or show edit modal
     Alert.alert(
       'Edit Listing',
@@ -231,6 +273,11 @@ const RentalScreen: React.FC = () => {
   };
 
   const handleUpdatePrice = (listing: Listing) => {
+    if (!user?.uid || listing.sellerId !== user.uid) {
+      Alert.alert('Error', 'You can only update your own listings');
+      return;
+    }
+
     Alert.prompt(
       'Update Price',
       'Enter new daily rental price:',
@@ -263,6 +310,11 @@ const RentalScreen: React.FC = () => {
   };
 
   const handleUpdateDescription = (listing: Listing) => {
+    if (!user?.uid || listing.sellerId !== user.uid) {
+      Alert.alert('Error', 'You can only update your own listings');
+      return;
+    }
+
     Alert.prompt(
       'Update Description',
       'Enter new description:',
@@ -293,6 +345,11 @@ const RentalScreen: React.FC = () => {
   };
 
   const handleToggleAvailability = async (listing: Listing) => {
+    if (!user?.uid || listing.sellerId !== user.uid) {
+      Alert.alert('Error', 'You can only update your own listings');
+      return;
+    }
+
     try {
       const newStatus = listing.isActive ? false : true;
       await updateDoc(doc(db, 'listings', listing.id), {
@@ -368,6 +425,12 @@ const RentalScreen: React.FC = () => {
       return;
     }
 
+    // Prevent users from booking their own items
+    if (listing.sellerId === user.uid) {
+      Alert.alert('Error', 'You cannot book your own rental listing');
+      return;
+    }
+
     setSelectedListing(listing);
     setShowRentalModal(true);
   };
@@ -433,8 +496,18 @@ const RentalScreen: React.FC = () => {
     }
   };
 
+  const handleListingPress = (listing: Listing) => {
+    (navigation as any).navigate('ProductDetail', {
+      listingId: listing.id,
+      productId: listing.id
+    });
+  };
+
   const renderRentalListing = ({ item }: { item: Listing }) => (
-    <TouchableOpacity style={styles.listingCard}>
+    <TouchableOpacity 
+      style={styles.listingCard}
+      onPress={() => handleListingPress(item)}
+    >
       <Image
         source={{
           uri: item.imageBase64
@@ -466,7 +539,7 @@ const RentalScreen: React.FC = () => {
         )}
         
         {/* Location information */}
-        {item.location && (
+        {item.location && item.location.city && (
           <View style={styles.locationContainer}>
             <Ionicons name="location-outline" size={12} color="#8B7355" />
             <Text style={styles.locationText} numberOfLines={1}>
@@ -499,7 +572,7 @@ const RentalScreen: React.FC = () => {
               color="#8B7355" 
             />
             <Text style={styles.contactMethod}>
-              {item.contactInfo.preferredContactMethod}
+              {String(item.contactInfo.preferredContactMethod)}
             </Text>
           </View>
         )}
@@ -527,7 +600,10 @@ const RentalScreen: React.FC = () => {
   );
 
   const renderMyRentalListing = ({ item }: { item: Listing }) => (
-    <TouchableOpacity style={styles.listingCard}>
+    <TouchableOpacity 
+      style={styles.listingCard}
+      onPress={() => handleListingPress(item)}
+    >
       <Image
         source={{
           uri: item.imageBase64
@@ -559,7 +635,7 @@ const RentalScreen: React.FC = () => {
         )}
         
         {/* Location for my listings */}
-        {item.location && (
+        {item.location && item.location.address && (
           <View style={styles.locationContainer}>
             <Ionicons name="location-outline" size={12} color="#8B7355" />
             <Text style={styles.locationText} numberOfLines={1}>
@@ -592,7 +668,17 @@ const RentalScreen: React.FC = () => {
         
         <View style={styles.listingFooter}>
           <Text style={styles.listingDate}>
-            Posted {new Date(item.postedDate).toLocaleDateString()}
+            Posted {(() => {
+              try {
+                if (item.postedDate) {
+                  const date = new Date(item.postedDate);
+                  return !isNaN(date.getTime()) ? date.toLocaleDateString() : 'Unknown date';
+                }
+                return 'Unknown date';
+              } catch {
+                return 'Unknown date';
+              }
+            })()}
           </Text>
           <View style={styles.actionButtons}>
             <TouchableOpacity
@@ -617,172 +703,197 @@ const RentalScreen: React.FC = () => {
     switch (activeTab) {
       case 'browse':
         return (
-          <FlatList
-            key={`rental-${activeTab}-list`}
-            data={rentalListings}
-            renderItem={renderRentalListing}
-            keyExtractor={(item) => item.id}
-            contentContainerStyle={styles.listContainer}
-            showsVerticalScrollIndicator={false}
-            refreshControl={
-              <RefreshControl
-                refreshing={refreshing}
-                onRefresh={onRefresh}
-                colors={['#8B4513']}
-                tintColor="#8B4513"
-              />
-            }
-            ListEmptyComponent={
-              isLoading ? (
-                <View style={styles.loadingContainer}>
-                  <ActivityIndicator size="large" color="#8B4513" />
-                  <Text style={styles.loadingText}>Loading rental items...</Text>
-                </View>
-              ) : (
-                <View style={styles.emptyState}>
-                  <Ionicons name="calendar-outline" size={64} color="#D2B48C" />
-                  <Text style={styles.emptyTitle}>No rental items available</Text>
-                  <Text style={styles.emptyText}>Items for rent will appear here</Text>
-                </View>
-              )
-            }
-          />
+          <View style={styles.tabContentContainer}>
+            <View style={styles.tabDescription}>
+              <Text style={styles.tabDescriptionText}>
+                Browse rental items from other users. You can book items and chat with owners.
+              </Text>
+            </View>
+            <FlatList
+              key={`rental-${activeTab}-list`}
+              data={rentalListings}
+              renderItem={renderRentalListing}
+              keyExtractor={(item) => item.id}
+              contentContainerStyle={styles.listContainer}
+              showsVerticalScrollIndicator={false}
+              numColumns={2}
+              columnWrapperStyle={styles.gridRow}
+              refreshControl={
+                <RefreshControl
+                  refreshing={refreshing}
+                  onRefresh={onRefresh}
+                  colors={['#8B4513']}
+                  tintColor="#8B4513"
+                />
+              }
+              ListEmptyComponent={
+                isLoading ? (
+                  <View style={styles.loadingContainer}>
+                    <ActivityIndicator size="large" color="#8B4513" />
+                    <Text style={styles.loadingText}>Loading rental items...</Text>
+                  </View>
+                ) : (
+                  <View style={styles.emptyState}>
+                    <Ionicons name="calendar-outline" size={64} color="#D2B48C" />
+                    <Text style={styles.emptyTitle}>No rental items available</Text>
+                    <Text style={styles.emptyText}>Items for rent will appear here</Text>
+                  </View>
+                )
+              }
+            />
+          </View>
         );
         
       case 'my_rentals':
         return (
-          <FlatList
-            key={`rental-${activeTab}-list`}
-            data={myRentalListings}
-            renderItem={renderMyRentalListing}
-            keyExtractor={(item) => item.id}
-            contentContainerStyle={styles.listContainer}
-            showsVerticalScrollIndicator={false}
-            refreshControl={
-              <RefreshControl
-                refreshing={refreshing}
-                onRefresh={onRefresh}
-                colors={['#8B4513']}
-                tintColor="#8B4513"
-              />
-            }
-            ListEmptyComponent={
-              isLoading ? (
-                <View style={styles.loadingContainer}>
-                  <ActivityIndicator size="large" color="#8B4513" />
-                  <Text style={styles.loadingText}>Loading your rentals...</Text>
-                </View>
-              ) : (
-                <View style={styles.emptyState}>
-                  <Ionicons name="add-circle-outline" size={64} color="#ccc" />
-                  <Text style={styles.emptyTitle}>No rental items listed</Text>
-                  <Text style={styles.emptyText}>
-                    List items you want to rent out
-                  </Text>
-                </View>
-              )
-            }
-          />
+          <View style={styles.tabContentContainer}>
+            <View style={styles.tabDescription}>
+              <Text style={styles.tabDescriptionText}>
+                Manage your rental listings. You can edit, delete, and view stats for your items.
+              </Text>
+            </View>
+            <FlatList
+              key={`rental-${activeTab}-list`}
+              data={myRentalListings}
+              renderItem={renderMyRentalListing}
+              keyExtractor={(item) => item.id}
+              contentContainerStyle={styles.listContainer}
+              showsVerticalScrollIndicator={false}
+              numColumns={2}
+              columnWrapperStyle={styles.gridRow}
+              refreshControl={
+                <RefreshControl
+                  refreshing={refreshing}
+                  onRefresh={onRefresh}
+                  colors={['#8B4513']}
+                  tintColor="#8B4513"
+                />
+              }
+              ListEmptyComponent={
+                isLoading ? (
+                  <View style={styles.loadingContainer}>
+                    <ActivityIndicator size="large" color="#8B4513" />
+                    <Text style={styles.loadingText}>Loading your rentals...</Text>
+                  </View>
+                ) : (
+                  <View style={styles.emptyState}>
+                    <Ionicons name="add-circle-outline" size={64} color="#ccc" />
+                    <Text style={styles.emptyTitle}>No rental items listed</Text>
+                    <Text style={styles.emptyText}>
+                      List items you want to rent out
+                    </Text>
+                  </View>
+                )
+              }
+            />
+          </View>
         );
         
       case 'bookings':
         return (
-          <FlatList
-            key={`rental-${activeTab}-list`}
-            data={rentalRequests}
-            renderItem={({ item }) => {
-              const isIncoming = item.ownerId === user?.uid;
-              const canManage = isIncoming && item.status === 'pending';
-              const canCancel = item.renterId === user?.uid && ['pending', 'approved'].includes(item.status);
-              
-              return (
-                <View style={styles.bookingCard}>
-                  <View style={styles.requestHeader}>
-                    <Text style={styles.bookingTitle}>
-                      {isIncoming ? 'Incoming Request' : 'Your Request'}
-                    </Text>
-                    <View style={[
-                      styles.statusBadge,
-                      { backgroundColor: getRequestStatusColor(item.status) }
-                    ]}>
-                      <Text style={styles.statusText}>{item.status}</Text>
+          <View style={styles.tabContentContainer}>
+            <View style={styles.tabDescription}>
+              <Text style={styles.tabDescriptionText}>
+                View rental requests you've sent and received. Manage bookings and approvals.
+              </Text>
+            </View>
+            <FlatList
+              key={`rental-${activeTab}-list`}
+              data={rentalRequests}
+              renderItem={({ item }) => {
+                const isIncoming = item.ownerId === user?.uid;
+                const canManage = isIncoming && item.status === 'pending';
+                const canCancel = item.renterId === user?.uid && ['pending', 'approved'].includes(item.status);
+                
+                return (
+                  <View style={styles.bookingCard}>
+                    <View style={styles.requestHeader}>
+                      <Text style={styles.bookingTitle}>
+                        {isIncoming ? 'Incoming Request' : 'Your Request'}
+                      </Text>
+                      <View style={[
+                        styles.statusBadge,
+                        { backgroundColor: getRequestStatusColor(item.status) }
+                      ]}>
+                        <Text style={styles.statusText}>{item.status}</Text>
+                      </View>
                     </View>
+                    <Text style={styles.bookingCost}>
+                      Cost: K{item.totalCost?.toFixed(2) || '0.00'}
+                    </Text>
+                    <Text style={styles.bookingDate}>
+                      {item.startDate && item.endDate 
+                        ? `${new Date(item.startDate).toLocaleDateString()} - ${new Date(item.endDate).toLocaleDateString()}`
+                        : 'Date TBD'
+                      }
+                    </Text>
+                    {item.message && (
+                      <Text style={styles.requestMessage}>
+                        Message: {item.message}
+                      </Text>
+                    )}
+                    
+                    {/* Action buttons for incoming requests */}
+                    {canManage && (
+                      <View style={styles.requestActions}>
+                        <TouchableOpacity 
+                          style={styles.rejectButton}
+                          onPress={() => handleRejectRentalRequest(item.id!)}
+                        >
+                          <Text style={styles.rejectButtonText}>Reject</Text>
+                        </TouchableOpacity>
+                        <TouchableOpacity 
+                          style={styles.acceptButton}
+                          onPress={() => handleAcceptRentalRequest(item.id!)}
+                        >
+                          <Text style={styles.acceptButtonText}>Accept</Text>
+                        </TouchableOpacity>
+                      </View>
+                    )}
+                    
+                    {/* Cancel button for outgoing requests */}
+                    {canCancel && (
+                      <View style={styles.requestActions}>
+                        <TouchableOpacity 
+                          style={styles.cancelButton}
+                          onPress={() => handleCancelRentalRequest(item.id!)}
+                        >
+                          <Text style={styles.cancelButtonText}>Cancel Request</Text>
+                        </TouchableOpacity>
+                      </View>
+                    )}
                   </View>
-                  <Text style={styles.bookingCost}>
-                    Cost: K{item.totalCost?.toFixed(2) || '0.00'}
-                  </Text>
-                  <Text style={styles.bookingDate}>
-                    {item.startDate && item.endDate 
-                      ? `${new Date(item.startDate).toLocaleDateString()} - ${new Date(item.endDate).toLocaleDateString()}`
-                      : 'Date TBD'
-                    }
-                  </Text>
-                  {item.message && (
-                    <Text style={styles.requestMessage}>
-                      Message: {item.message}
+                );
+              }}
+              keyExtractor={(item) => item.id!}
+              contentContainerStyle={styles.listContainer}
+              showsVerticalScrollIndicator={false}
+              refreshControl={
+                <RefreshControl
+                  refreshing={refreshing}
+                  onRefresh={onRefresh}
+                  colors={['#8B4513']}
+                  tintColor="#8B4513"
+                />
+              }
+              ListEmptyComponent={
+                isLoading ? (
+                  <View style={styles.loadingContainer}>
+                    <ActivityIndicator size="large" color="#8B4513" />
+                    <Text style={styles.loadingText}>Loading bookings...</Text>
+                  </View>
+                ) : (
+                  <View style={styles.emptyState}>
+                    <Ionicons name="calendar-outline" size={64} color="#ccc" />
+                    <Text style={styles.emptyTitle}>No bookings</Text>
+                    <Text style={styles.emptyText}>
+                      Your rental bookings will appear here
                     </Text>
-                  )}
-                  
-                  {/* Action buttons for incoming requests */}
-                  {canManage && (
-                    <View style={styles.requestActions}>
-                      <TouchableOpacity 
-                        style={styles.rejectButton}
-                        onPress={() => handleRejectRentalRequest(item.id!)}
-                      >
-                        <Text style={styles.rejectButtonText}>Reject</Text>
-                      </TouchableOpacity>
-                      <TouchableOpacity 
-                        style={styles.acceptButton}
-                        onPress={() => handleAcceptRentalRequest(item.id!)}
-                      >
-                        <Text style={styles.acceptButtonText}>Accept</Text>
-                      </TouchableOpacity>
-                    </View>
-                  )}
-                  
-                  {/* Cancel button for outgoing requests */}
-                  {canCancel && (
-                    <View style={styles.requestActions}>
-                      <TouchableOpacity 
-                        style={styles.cancelButton}
-                        onPress={() => handleCancelRentalRequest(item.id!)}
-                      >
-                        <Text style={styles.cancelButtonText}>Cancel Request</Text>
-                      </TouchableOpacity>
-                    </View>
-                  )}
-                </View>
-              );
-            }}
-            keyExtractor={(item) => item.id!}
-            contentContainerStyle={styles.listContainer}
-            showsVerticalScrollIndicator={false}
-            refreshControl={
-              <RefreshControl
-                refreshing={refreshing}
-                onRefresh={onRefresh}
-                colors={['#8B4513']}
-                tintColor="#8B4513"
-              />
-            }
-            ListEmptyComponent={
-              isLoading ? (
-                <View style={styles.loadingContainer}>
-                  <ActivityIndicator size="large" color="#8B4513" />
-                  <Text style={styles.loadingText}>Loading bookings...</Text>
-                </View>
-              ) : (
-                <View style={styles.emptyState}>
-                  <Ionicons name="calendar-outline" size={64} color="#ccc" />
-                  <Text style={styles.emptyTitle}>No bookings</Text>
-                  <Text style={styles.emptyText}>
-                    Your rental bookings will appear here
-                  </Text>
-                </View>
-              )
-            }
-          />
+                  </View>
+                )
+              }
+            />
+          </View>
         );
         
       default:
@@ -795,32 +906,26 @@ const RentalScreen: React.FC = () => {
   };
 
   return (
-    <AuthGuard
-      fallbackTitle="Access Your Rentals"
-      fallbackMessage="Sign in to view and manage your rental items, bookings, and rental requests"
-      fallbackIcon="calendar-outline"
-      showBackButton={false}
-    >
-      <View style={styles.container}>
-        <View style={styles.header}>
-          <Text style={styles.headerTitle}>Rentals</Text>
-          <TouchableOpacity 
-            style={styles.addItemButton}
-            onPress={() => {
-              if (!user) {
-                Alert.alert('Login Required', 'Please login to list items for rent');
-                return;
-              }
-              (navigation as any).navigate('AddRentalSwapListing', { listingType: 'rent' });
-            }}
-          >
-            <Ionicons name="add" size={24} color="#8B4513" />
-          </TouchableOpacity>
-        </View>
+    <View style={styles.container}>
+      <View style={styles.header}>
+        <Text style={styles.headerTitle}>Rentals</Text>
+        <TouchableOpacity 
+          style={styles.addItemButton}
+          onPress={() => {
+            if (!user) {
+              Alert.alert('Login Required', 'Please login to list items for rent');
+              return;
+            }
+            (navigation as any).navigate('AddRentalSwapListing', { listingType: 'rent' });
+          }}
+        >
+          <Ionicons name="add" size={24} color="#8B4513" />
+        </TouchableOpacity>
+      </View>
 
         <View style={styles.tabContainer}>
           <TouchableOpacity
-            style={[styles.tab, activeTab === 'browse' && styles.activeTab]}
+            style={[styles.tab, activeTab === 'browse' && styles.activeTab, !user && styles.singleTab]}
             onPress={() => setActiveTab('browse')}
           >
             <Text style={[styles.tabText, activeTab === 'browse' && styles.activeTabText]}>
@@ -828,23 +933,27 @@ const RentalScreen: React.FC = () => {
             </Text>
           </TouchableOpacity>
           
-          <TouchableOpacity
-            style={[styles.tab, activeTab === 'my_rentals' && styles.activeTab]}
-            onPress={() => setActiveTab('my_rentals')}
-          >
-            <Text style={[styles.tabText, activeTab === 'my_rentals' && styles.activeTabText]}>
-              My Rentals
-            </Text>
-          </TouchableOpacity>
+          {user && (
+            <TouchableOpacity
+              style={[styles.tab, activeTab === 'my_rentals' && styles.activeTab]}
+              onPress={() => setActiveTab('my_rentals')}
+            >
+              <Text style={[styles.tabText, activeTab === 'my_rentals' && styles.activeTabText]}>
+                My Rentals
+              </Text>
+            </TouchableOpacity>
+          )}
           
-          <TouchableOpacity
-            style={[styles.tab, activeTab === 'bookings' && styles.activeTab]}
-            onPress={() => setActiveTab('bookings')}
-          >
-            <Text style={[styles.tabText, activeTab === 'bookings' && styles.activeTabText]}>
-              Bookings
-            </Text>
-          </TouchableOpacity>
+          {user && (
+            <TouchableOpacity
+              style={[styles.tab, activeTab === 'bookings' && styles.activeTab]}
+              onPress={() => setActiveTab('bookings')}
+            >
+              <Text style={[styles.tabText, activeTab === 'bookings' && styles.activeTabText]}>
+                Bookings
+              </Text>
+            </TouchableOpacity>
+          )}
         </View>
 
         {renderTabContent()}
@@ -928,8 +1037,7 @@ const RentalScreen: React.FC = () => {
             showDirections={true}
           />
         )}
-      </View>
-    </AuthGuard>
+    </View>
   );
 };
 
@@ -985,9 +1093,28 @@ const styles = StyleSheet.create({
     color: '#8B4513', 
     fontWeight: '600' 
   },
+  singleTab: {
+    flex: 1,
+  },
   listContainer: { 
     paddingHorizontal: 12, 
     paddingVertical: 8 
+  },
+  tabContentContainer: {
+    flex: 1,
+  },
+  tabDescription: {
+    backgroundColor: '#F8F6F4',
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    borderBottomWidth: 1,
+    borderBottomColor: '#E8E2DD',
+  },
+  tabDescriptionText: {
+    fontSize: 13,
+    color: '#8B7355',
+    textAlign: 'center',
+    lineHeight: 18,
   },
   gridRow: {
     justifyContent: 'space-between',
@@ -1156,6 +1283,27 @@ const styles = StyleSheet.create({
     justifyContent: 'center', 
     alignItems: 'center', 
     paddingVertical: 60 
+  },
+  authRequiredContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingVertical: 60,
+    paddingHorizontal: 32,
+  },
+  authRequiredTitle: {
+    fontSize: 18,
+    fontWeight: '700',
+    color: '#2D1810',
+    marginTop: 16,
+    marginBottom: 8,
+    textAlign: 'center',
+  },
+  authRequiredText: {
+    fontSize: 14,
+    color: '#8B7355',
+    textAlign: 'center',
+    lineHeight: 20,
   },
   emptyTitle: { 
     fontSize: 18, 

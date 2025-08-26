@@ -175,7 +175,11 @@ const MyBookingsScreen: React.FC = () => {
               <Ionicons name="calendar-outline" size={16} color="#8B7355" />
               <Text style={styles.detailLabel}>Period:</Text>
               <Text style={styles.detailValue}>
-                {new Date(item.startDate).toLocaleDateString()} - {new Date(item.endDate).toLocaleDateString()}
+                {item.startDate && !isNaN(new Date(item.startDate).getTime()) 
+                  ? new Date(item.startDate).toLocaleDateString() 
+                  : 'Unknown'} - {item.endDate && !isNaN(new Date(item.endDate).getTime()) 
+                  ? new Date(item.endDate).toLocaleDateString() 
+                  : 'Unknown'}
               </Text>
             </View>
           )}
@@ -194,7 +198,9 @@ const MyBookingsScreen: React.FC = () => {
             <Ionicons name="time-outline" size={16} color="#8B7355" />
             <Text style={styles.detailLabel}>Requested:</Text>
             <Text style={styles.detailValue}>
-              {new Date(item.createdAt).toLocaleDateString()}
+              {item.createdAt && !isNaN(new Date(item.createdAt).getTime()) 
+                ? new Date(item.createdAt).toLocaleDateString() 
+                : 'Unknown date'}
             </Text>
           </View>
         </View>
@@ -273,7 +279,7 @@ const MyBookingsScreen: React.FC = () => {
               color={activeTab === 'sent' ? '#8B4513' : '#8B7355'} 
             />
             <Text style={[styles.tabText, activeTab === 'sent' && styles.activeTabText]}>
-              Sent ({sentRequests.length})
+              Sent ({String(sentRequests.length)})
             </Text>
           </TouchableOpacity>
           
@@ -287,7 +293,7 @@ const MyBookingsScreen: React.FC = () => {
               color={activeTab === 'received' ? '#8B4513' : '#8B7355'} 
             />
             <Text style={[styles.tabText, activeTab === 'received' && styles.activeTabText]}>
-              Received ({receivedRequests.length})
+              Received ({String(receivedRequests.length)})
             </Text>
           </TouchableOpacity>
         </View>

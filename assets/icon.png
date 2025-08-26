@@ -1,0 +1,28 @@
+<!-- KUTRA App Logo Icon -->
+<svg width="1024" height="1024" viewBox="0 0 1024 1024" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <linearGradient id="gradient" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#8B4513"/>
+      <stop offset="50%" stop-color="#A0522D"/>
+      <stop offset="100%" stop-color="#CD853F"/>
+    </linearGradient>
+  </defs>
+  
+  <!-- Background circle -->
+  <circle cx="512" cy="512" r="500" fill="url(#gradient)" stroke="#FFFFFF" stroke-width="8"/>
+  
+  <!-- Store icon background -->
+  <circle cx="512" cy="400" r="100" fill="rgba(255,255,255,0.2)"/>
+  
+  <!-- Store icon (simplified storefront) -->
+  <rect x="470" y="360" width="84" height="80" fill="#FFFFFF" rx="4"/>
+  <rect x="480" y="370" width="24" height="60" fill="#8B4513"/>
+  <rect x="520" y="370" width="24" height="60" fill="#8B4513"/>
+  <rect x="470" y="350" width="84" height="20" fill="#FFFFFF" rx="2"/>
+  
+  <!-- KUTRA text -->
+  <text x="512" y="580" font-family="Arial, sans-serif" font-size="120" font-weight="900" text-anchor="middle" fill="#FFFFFF" letter-spacing="-2">KUTRA</text>
+  
+  <!-- Tagline -->
+  <text x="512" y="640" font-family="Arial, sans-serif" font-size="32" font-weight="600" text-anchor="middle" fill="rgba(255,255,255,0.9)">Trade meets AI</text>
+</svg>

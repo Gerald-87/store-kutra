@@ -275,7 +275,7 @@ const MyRequestsScreen: React.FC = () => {
               color={activeTab === 'sent' ? '#8B4513' : '#8B7355'} 
             />
             <Text style={[styles.tabText, activeTab === 'sent' && styles.activeTabText]}>
-              Sent ({sentRequests.length})
+              Sent ({String(sentRequests.length)})
             </Text>
           </TouchableOpacity>
           
@@ -289,7 +289,7 @@ const MyRequestsScreen: React.FC = () => {
               color={activeTab === 'received' ? '#8B4513' : '#8B7355'} 
             />
             <Text style={[styles.tabText, activeTab === 'received' && styles.activeTabText]}>
-              Received ({receivedRequests.length})
+              Received ({String(receivedRequests.length)})
             </Text>
           </TouchableOpacity>
         </View>

@@ -224,7 +224,7 @@ const MyItemsScreen: React.FC = () => {
               color={activeTab === 'swap' ? '#8B4513' : '#8B7355'} 
             />
             <Text style={[styles.tabText, activeTab === 'swap' && styles.activeTabText]}>
-              Swap Items ({swapListings.length})
+              Swap Items ({String(swapListings.length)})
             </Text>
           </TouchableOpacity>
           
@@ -238,7 +238,7 @@ const MyItemsScreen: React.FC = () => {
               color={activeTab === 'rental' ? '#8B4513' : '#8B7355'} 
             />
             <Text style={[styles.tabText, activeTab === 'rental' && styles.activeTabText]}>
-              Rental Items ({rentalListings.length})
+              Rental Items ({String(rentalListings.length)})
             </Text>
           </TouchableOpacity>
         </View>

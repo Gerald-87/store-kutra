@@ -14,7 +14,7 @@
     "assetBundlePatterns": [
       "**/*"
     ],
-    "newArchEnabled": true,
+    "newArchEnabled": false,
     "ios": {
       "supportsTablet": true,
       "bundleIdentifier": "com.kutra.app"
@@ -29,6 +29,12 @@
     },
     "web": {
       "favicon": "./assets/icon.svg"
-    }
+    },
+    "extra": {
+      "eas": {
+        "projectId": "4ec0c6db-d9ed-408d-9b11-7fc2c05d9bc8"
+      }
+    },
+    "owner": "dev87"
   }
 }

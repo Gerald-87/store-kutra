@@ -393,14 +393,38 @@ function StoreOwnerNavigator() {
         headerShown: false,
       })}
     >
-      <StoreOwnerTab.Screen name="Dashboard" component={StoreDashboardNavigator} />
-      <StoreOwnerTab.Screen name="Products" component={StoreProductsNavigator} />
-      <StoreOwnerTab.Screen name="Orders" component={StoreOrdersNavigator} />
-      <StoreOwnerTab.Screen name="Analytics" component={StoreAnalyticsScreen} />
+      <StoreOwnerTab.Screen 
+        name="Dashboard" 
+        component={StoreDashboardNavigator} 
+        options={{ tabBarLabel: 'Dashboard' }}
+      />
+      <StoreOwnerTab.Screen 
+        name="Products" 
+        component={StoreProductsNavigator} 
+        options={{ tabBarLabel: 'Products' }}
+      />
+      <StoreOwnerTab.Screen 
+        name="Orders" 
+        component={StoreOrdersNavigator} 
+        options={{ tabBarLabel: 'Orders' }}
+      />
+      <StoreOwnerTab.Screen 
+        name="Analytics" 
+        component={StoreAnalyticsScreen} 
+        options={{ tabBarLabel: 'Analytics' }}
+      />
       {isAuthenticated && (
-        <StoreOwnerTab.Screen name="Chat" component={ChatScreen} />
+        <StoreOwnerTab.Screen 
+          name="Chat" 
+          component={ChatScreen} 
+          options={{ tabBarLabel: 'Chat' }}
+        />
       )}
-      <StoreOwnerTab.Screen name="Profile" component={ProfileNavigator} />
+      <StoreOwnerTab.Screen 
+        name="Profile" 
+        component={ProfileNavigator} 
+        options={{ tabBarLabel: 'Profile' }}
+      />
     </StoreOwnerTab.Navigator>
   );
 }
@@ -461,14 +485,38 @@ function MainNavigator() {
         headerShown: false,
       })}
     >
-      <Tab.Screen name="Home" component={HomeNavigator} />
-      <Tab.Screen name="Stores" component={StoreNavigator} />
-      <Tab.Screen name="Swap" component={SwapScreen} />
-      <Tab.Screen name="Rental" component={RentalScreen} />
+      <Tab.Screen 
+        name="Home" 
+        component={HomeNavigator} 
+        options={{ tabBarLabel: 'Home' }}
+      />
+      <Tab.Screen 
+        name="Stores" 
+        component={StoreNavigator} 
+        options={{ tabBarLabel: 'Stores' }}
+      />
+      <Tab.Screen 
+        name="Swap" 
+        component={SwapScreen} 
+        options={{ tabBarLabel: 'Swap' }}
+      />
+      <Tab.Screen 
+        name="Rental" 
+        component={RentalScreen} 
+        options={{ tabBarLabel: 'Rental' }}
+      />
       {isAuthenticated && (
-        <Tab.Screen name="Chat" component={ChatScreen} />
+        <Tab.Screen 
+          name="Chat" 
+          component={ChatScreen} 
+          options={{ tabBarLabel: 'Chat' }}
+        />
       )}
-      <Tab.Screen name="Profile" component={ProfileNavigator} />
+      <Tab.Screen 
+        name="Profile" 
+        component={ProfileNavigator} 
+        options={{ tabBarLabel: 'Profile' }}
+      />
     </Tab.Navigator>
   );
 }

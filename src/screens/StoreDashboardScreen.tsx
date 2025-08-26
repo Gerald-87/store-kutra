@@ -283,7 +283,7 @@ const StoreDashboardScreen: React.FC = () => {
                   return (
                     <View key={index} style={styles.barChartItem}>
                       <View style={styles.barChartHeader}>
-                        <Text style={styles.barProductRank}>#{index + 1}</Text>
+                        <Text style={styles.barProductRank}>#{String(index + 1)}</Text>
                         <Text style={styles.barProductName} numberOfLines={1}>
                           {product.name}
                         </Text>
@@ -305,6 +305,66 @@ const StoreDashboardScreen: React.FC = () => {
                 <Text style={styles.noDataText}>No product sales data available</Text>
               </View>
             )}
+          </View>
+        </View>
+
+        {/* Recent Chats */}
+        <View style={styles.section}>
+          <View style={styles.sectionHeader}>
+            <Text style={styles.sectionTitle}>Recent Chats</Text>
+            <TouchableOpacity
+              onPress={() => navigation.getParent()?.navigate('Chat')}
+              style={styles.sectionViewAll}
+            >
+              <Text style={styles.viewAllText}>View All</Text>
+              <Ionicons name="chevron-forward" size={16} color="#8B4513" />
+            </TouchableOpacity>
+          </View>
+          
+          {/* Chat Preview - will show first 3 recent conversations */}
+          <View style={styles.chatPreviewContainer}>
+            <TouchableOpacity
+              style={styles.chatPreviewItem}
+              onPress={() => navigation.getParent()?.navigate('Chat')}
+            >
+              <View style={styles.chatAvatar}>
+                <Ionicons name="person" size={20} color="#8B4513" />
+              </View>
+              <View style={styles.chatContent}>
+                <Text style={styles.chatUserName} numberOfLines={1}>Customer Support</Text>
+                <Text style={styles.chatLastMessage} numberOfLines={1}>Thank you for your help with...</Text>
+              </View>
+              <View style={styles.chatMeta}>
+                <Text style={styles.chatTime}>2h ago</Text>
+                <View style={styles.chatUnreadBadge}>
+                  <Text style={styles.chatUnreadText}>2</Text>
+                </View>
+              </View>
+            </TouchableOpacity>
+            
+            <TouchableOpacity
+              style={styles.chatPreviewItem}
+              onPress={() => navigation.getParent()?.navigate('Chat')}
+            >
+              <View style={styles.chatAvatar}>
+                <Ionicons name="person" size={20} color="#8B4513" />
+              </View>
+              <View style={styles.chatContent}>
+                <Text style={styles.chatUserName} numberOfLines={1}>John Customer</Text>
+                <Text style={styles.chatLastMessage} numberOfLines={1}>Is this product still available?</Text>
+              </View>
+              <View style={styles.chatMeta}>
+                <Text style={styles.chatTime}>5h ago</Text>
+              </View>
+            </TouchableOpacity>
+            
+            <TouchableOpacity
+              style={styles.emptyChatState}
+              onPress={() => navigation.getParent()?.navigate('Chat')}
+            >
+              <Ionicons name="chatbubbles-outline" size={24} color="#D2B48C" />
+              <Text style={styles.emptyChatText}>View all conversations</Text>
+            </TouchableOpacity>
           </View>
         </View>
 
@@ -480,6 +540,95 @@ const styles = StyleSheet.create({
     fontWeight: '700',
     color: '#2D1810',
     marginBottom: 16,
+  },
+  sectionHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 16,
+  },
+  sectionViewAll: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  viewAllText: {
+    fontSize: 14,
+    color: '#8B4513',
+    fontWeight: '600',
+    marginRight: 4,
+  },
+  chatPreviewContainer: {
+    backgroundColor: '#FFFFFF',
+    borderRadius: 12,
+    paddingVertical: 8,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.05,
+    shadowRadius: 4,
+    elevation: 2,
+  },
+  chatPreviewItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    borderBottomWidth: 1,
+    borderBottomColor: '#F5F1ED',
+  },
+  chatAvatar: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: '#F5F1ED',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginRight: 12,
+  },
+  chatContent: {
+    flex: 1,
+  },
+  chatUserName: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#2D1810',
+    marginBottom: 2,
+  },
+  chatLastMessage: {
+    fontSize: 12,
+    color: '#8B7355',
+  },
+  chatMeta: {
+    alignItems: 'flex-end',
+  },
+  chatTime: {
+    fontSize: 11,
+    color: '#8B7355',
+    marginBottom: 4,
+  },
+  chatUnreadBadge: {
+    backgroundColor: '#EF4444',
+    borderRadius: 8,
+    minWidth: 16,
+    height: 16,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  chatUnreadText: {
+    color: '#FFFFFF',
+    fontSize: 10,
+    fontWeight: '700',
+  },
+  emptyChatState: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 16,
+  },
+  emptyChatText: {
+    fontSize: 14,
+    color: '#8B7355',
+    marginLeft: 8,
+    fontWeight: '500',
   },
   statsGrid: {
     flexDirection: 'row',

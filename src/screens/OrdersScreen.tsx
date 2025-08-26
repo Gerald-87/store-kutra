@@ -147,9 +147,13 @@ const OrdersScreen: React.FC = () => {
     if (!date) return 'Unknown';
     try {
       const dateObj = date.toDate ? date.toDate() : new Date(date);
+      if (isNaN(dateObj.getTime())) {
+        return 'Unknown date';
+      }
       return dateObj.toLocaleDateString();
     } catch (error) {
-      return 'Invalid Date';
+      console.warn('Error formatting date:', error);
+      return 'Unknown date';
     }
   };
 
@@ -182,7 +186,7 @@ const OrdersScreen: React.FC = () => {
 
       <View style={styles.orderContent}>
         <Text style={styles.itemsCount}>
-          {item.items.length} item{item.items.length !== 1 ? 's' : ''}
+          {String(item.items.length)} item{item.items.length !== 1 ? 's' : ''}
         </Text>
         
         <View style={styles.orderDetails}>
@@ -310,7 +314,7 @@ const OrdersScreen: React.FC = () => {
             onPress={() => setActiveTab(tab.key)}
           >
             <Text style={[styles.tabText, activeTab === tab.key && styles.activeTabText]}>
-              {tab.label} ({getTabCount(tab.key)})
+              {tab.label} ({String(getTabCount(tab.key))})
             </Text>
           </TouchableOpacity>
         ))}

@@ -485,9 +485,9 @@ const StoreDetailScreen: React.FC = () => {
           {/* Results Summary */}
           <View style={styles.resultsContainer}>
             <Text style={styles.resultsText}>
-              {filteredProducts.length} of {products.length} products
-              {searchQuery.trim() && ` for "${searchQuery}"`}
-              {selectedCategory !== 'All' && ` in ${selectedCategory}`}
+              {String(filteredProducts.length)} of {String(products.length)} products
+              {searchQuery.trim() ? ` for "${searchQuery}"` : ''}
+              {selectedCategory !== 'All' ? ` in ${selectedCategory}` : ''}
             </Text>
           </View>
         </View>
@@ -495,7 +495,7 @@ const StoreDetailScreen: React.FC = () => {
         {/* Products Section */}
         <View style={styles.productsSection}>
           <View style={styles.sectionHeader}>
-            <Text style={styles.sectionTitle}>Products ({filteredProducts.length})</Text>
+            <Text style={styles.sectionTitle}>Products ({String(filteredProducts.length)})</Text>
           </View>
           
           {filteredProducts.length > 0 ? (

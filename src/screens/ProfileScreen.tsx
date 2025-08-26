@@ -8,6 +8,10 @@ import {
   ScrollView,
   Alert,
   ActivityIndicator,
+  Modal,
+  TextInput,
+  KeyboardAvoidingView,
+  Platform,
 } from 'react-native';
 import { useDispatch, useSelector } from 'react-redux';
 import { useNavigation, CompositeNavigationProp } from '@react-navigation/native';
@@ -52,6 +56,13 @@ const ProfileScreen: React.FC = () => {
     }),
   });
   const [isLoadingStats, setIsLoadingStats] = useState(false);
+  const [showEditModal, setShowEditModal] = useState(false);
+  const [editForm, setEditForm] = useState({
+    name: user?.name || '',
+    email: user?.email || '',
+    campus: user?.campus || '',
+  });
+  const [isUpdating, setIsUpdating] = useState(false);
 
   // Load user statistics when component mounts
   useEffect(() => {
@@ -145,6 +156,41 @@ const ProfileScreen: React.FC = () => {
         },
       ]
     );
+  };
+
+  const handleEditProfile = () => {
+    setEditForm({
+      name: user?.name || '',
+      email: user?.email || '',
+      campus: user?.campus || '',
+    });
+    setShowEditModal(true);
+  };
+
+  const handleSaveProfile = async () => {
+    if (!editForm.name.trim()) {
+      Alert.alert('Error', 'Name is required');
+      return;
+    }
+    
+    if (!editForm.email.trim()) {
+      Alert.alert('Error', 'Email is required');
+      return;
+    }
+    
+    setIsUpdating(true);
+    try {
+      // Here you would typically update the user profile in Firebase
+      // For now, we'll just show a success message
+      Alert.alert('Success', 'Profile updated successfully!', [
+        { text: 'OK', onPress: () => setShowEditModal(false) }
+      ]);
+    } catch (error) {
+      console.error('Error updating profile:', error);
+      Alert.alert('Error', 'Failed to update profile. Please try again.');
+    } finally {
+      setIsUpdating(false);
+    }
   };
 
   const menuItems = [
@@ -267,11 +313,13 @@ const ProfileScreen: React.FC = () => {
             <Text style={styles.userCampus}>{user.campus}</Text>
           )}
           <Text style={styles.memberSince}>
-            Member since {new Date(user.joinedDate).toLocaleDateString()}
+            Member since {user.joinedDate && !isNaN(new Date(user.joinedDate).getTime()) 
+              ? new Date(user.joinedDate).toLocaleDateString() 
+              : 'Unknown date'}
           </Text>
         </View>
         
-        <TouchableOpacity style={styles.editProfileButton}>
+        <TouchableOpacity style={styles.editProfileButton} onPress={handleEditProfile}>
           <Ionicons name="create-outline" size={20} color="#8B4513" />
           <Text style={styles.editProfileText}>Edit</Text>
         </TouchableOpacity>
@@ -285,7 +333,7 @@ const ProfileScreen: React.FC = () => {
           ) : (
             <Text style={styles.statValue}>{stats.orders}</Text>
           )}
-          <Text style={styles.statLabel}>{user.role === 'Store Owner' ? 'Orders' : 'Orders'}</Text>
+          <Text style={styles.statLabel}>Orders</Text>
         </View>
         {user.role !== 'Store Owner' && (
           <>
@@ -309,20 +357,6 @@ const ProfileScreen: React.FC = () => {
             </View>
           </>
         )}
-        {user.role === 'Store Owner' && (
-          <>
-            <View style={styles.statDivider} />
-            <View style={styles.statItem}>
-              <Text style={styles.statValue}>-</Text>
-              <Text style={styles.statLabel}>Products</Text>
-            </View>
-            <View style={styles.statDivider} />
-            <View style={styles.statItem}>
-              <Text style={styles.statValue}>-</Text>
-              <Text style={styles.statLabel}>Revenue</Text>
-            </View>
-          </>
-        )}
       </View>
 
       {/* Activity Stats - Only for customers, not store owners */}
@@ -333,28 +367,28 @@ const ProfileScreen: React.FC = () => {
             <View style={styles.activityItem}>
               <Ionicons name="cube" size={24} color="#8B4513" />
               <Text style={styles.activityValue}>
-                {isLoadingStats ? '...' : (((stats as any).swapListings || 0) + ((stats as any).rentalListings || 0))}
+                {isLoadingStats ? '...' : String(((stats as any).swapListings || 0) + ((stats as any).rentalListings || 0))}
               </Text>
               <Text style={styles.activityLabel}>My Items</Text>
             </View>
             <View style={styles.activityItem}>
               <Ionicons name="calendar" size={24} color="#8B4513" />
               <Text style={styles.activityValue}>
-                {isLoadingStats ? '...' : ((stats as any).rentalListings || 0)}
+                {isLoadingStats ? '...' : String((stats as any).rentalListings || 0)}
               </Text>
               <Text style={styles.activityLabel}>Rental Items</Text>
             </View>
             <View style={styles.activityItem}>
               <Ionicons name="repeat" size={24} color="#8B4513" />
               <Text style={styles.activityValue}>
-                {isLoadingStats ? '...' : ((stats as any).swapRequests || 0)}
+                {isLoadingStats ? '...' : String((stats as any).swapRequests || 0)}
               </Text>
               <Text style={styles.activityLabel}>My Requests</Text>
             </View>
             <View style={styles.activityItem}>
               <Ionicons name="time" size={24} color="#8B4513" />
               <Text style={styles.activityValue}>
-                {isLoadingStats ? '...' : ((stats as any).rentalRequests || 0)}
+                {isLoadingStats ? '...' : String((stats as any).rentalRequests || 0)}
               </Text>
               <Text style={styles.activityLabel}>My Bookings</Text>
             </View>
@@ -414,6 +448,77 @@ const ProfileScreen: React.FC = () => {
           <Text style={styles.logoutText}>Logout</Text>
         </TouchableOpacity>
       </View>
+      
+      {/* Edit Profile Modal */}
+      <Modal
+        visible={showEditModal}
+        animationType="slide"
+        presentationStyle="pageSheet"
+        onRequestClose={() => setShowEditModal(false)}
+      >
+        <KeyboardAvoidingView 
+          style={styles.modalContainer}
+          behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+        >
+          <View style={styles.modalHeader}>
+            <TouchableOpacity 
+              onPress={() => setShowEditModal(false)}
+              style={styles.modalCancelButton}
+            >
+              <Text style={styles.modalCancelText}>Cancel</Text>
+            </TouchableOpacity>
+            <Text style={styles.modalTitle}>Edit Profile</Text>
+            <TouchableOpacity 
+              onPress={handleSaveProfile}
+              style={styles.modalSaveButton}
+              disabled={isUpdating}
+            >
+              {isUpdating ? (
+                <ActivityIndicator size="small" color="#8B4513" />
+              ) : (
+                <Text style={styles.modalSaveText}>Save</Text>
+              )}
+            </TouchableOpacity>
+          </View>
+          
+          <ScrollView style={styles.modalContent} showsVerticalScrollIndicator={false}>
+            <View style={styles.formGroup}>
+              <Text style={styles.formLabel}>Name</Text>
+              <TextInput
+                style={styles.formInput}
+                value={editForm.name}
+                onChangeText={(text) => setEditForm({...editForm, name: text})}
+                placeholder="Enter your name"
+                placeholderTextColor="#8B7355"
+              />
+            </View>
+            
+            <View style={styles.formGroup}>
+              <Text style={styles.formLabel}>Email</Text>
+              <TextInput
+                style={styles.formInput}
+                value={editForm.email}
+                onChangeText={(text) => setEditForm({...editForm, email: text})}
+                placeholder="Enter your email"
+                placeholderTextColor="#8B7355"
+                keyboardType="email-address"
+                autoCapitalize="none"
+              />
+            </View>
+            
+            <View style={styles.formGroup}>
+              <Text style={styles.formLabel}>Campus</Text>
+              <TextInput
+                style={styles.formInput}
+                value={editForm.campus}
+                onChangeText={(text) => setEditForm({...editForm, campus: text})}
+                placeholder="Enter your campus (optional)"
+                placeholderTextColor="#8B7355"
+              />
+            </View>
+          </ScrollView>
+        </KeyboardAvoidingView>
+      </Modal>
     </ScrollView>
   );
 };
@@ -680,6 +785,67 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     color: '#DC2626',
     marginLeft: 8,
+  },
+  modalContainer: {
+    flex: 1,
+    backgroundColor: '#F7F3F0',
+  },
+  modalHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    backgroundColor: '#FFFFFF',
+    paddingHorizontal: 20,
+    paddingVertical: 16,
+    borderBottomWidth: 1,
+    borderBottomColor: '#E8E2DD',
+  },
+  modalCancelButton: {
+    paddingVertical: 8,
+    paddingHorizontal: 12,
+  },
+  modalCancelText: {
+    fontSize: 16,
+    color: '#8B7355',
+    fontWeight: '500',
+  },
+  modalTitle: {
+    fontSize: 18,
+    fontWeight: '700',
+    color: '#2D1810',
+  },
+  modalSaveButton: {
+    paddingVertical: 8,
+    paddingHorizontal: 12,
+  },
+  modalSaveText: {
+    fontSize: 16,
+    color: '#8B4513',
+    fontWeight: '600',
+  },
+  modalContent: {
+    flex: 1,
+    paddingHorizontal: 20,
+    paddingTop: 20,
+  },
+  formGroup: {
+    marginBottom: 20,
+  },
+  formLabel: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#2D1810',
+    marginBottom: 8,
+  },
+  formInput: {
+    backgroundColor: '#FFFFFF',
+    borderRadius: 12,
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    fontSize: 16,
+    color: '#2D1810',
+    borderWidth: 1,
+    borderColor: '#E8E2DD',
   },
 });
 

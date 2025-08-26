@@ -23,7 +23,8 @@ export default function App() {
         await NotificationService.getInstance().initialize();
         console.log('Notification service initialized successfully');
       } catch (error) {
-        console.error('Failed to initialize notification service:', error);
+        console.warn('Notification service initialization failed (this is expected in Expo Go):', error);
+        // Don't show error to user in Expo Go as this is expected
       }
     };
 

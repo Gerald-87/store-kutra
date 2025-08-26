@@ -149,21 +149,30 @@ const ChatScreen: React.FC = () => {
   };
 
   const formatTimestamp = (timestamp: any) => {
-    const date = new Date(timestamp);
-    const now = new Date();
-    const diffMs = now.getTime() - date.getTime();
-    const diffHours = diffMs / (1000 * 60 * 60);
-    const diffDays = diffMs / (1000 * 60 * 60 * 24);
-    
-    if (diffHours < 1) {
-      const diffMins = Math.floor(diffMs / (1000 * 60));
-      return diffMins < 1 ? 'Just now' : `${diffMins}m ago`;
-    } else if (diffHours < 24) {
-      return `${Math.floor(diffHours)}h ago`;
-    } else if (diffDays < 7) {
-      return `${Math.floor(diffDays)}d ago`;
-    } else {
-      return date.toLocaleDateString();
+    if (!timestamp) return 'Unknown';
+    try {
+      const date = new Date(timestamp);
+      if (isNaN(date.getTime())) {
+        return 'Unknown';
+      }
+      const now = new Date();
+      const diffMs = now.getTime() - date.getTime();
+      const diffHours = diffMs / (1000 * 60 * 60);
+      const diffDays = diffMs / (1000 * 60 * 60 * 24);
+      
+      if (diffHours < 1) {
+        const diffMins = Math.floor(diffMs / (1000 * 60));
+        return diffMins < 1 ? 'Just now' : `${diffMins}m ago`;
+      } else if (diffHours < 24) {
+        return `${Math.floor(diffHours)}h ago`;
+      } else if (diffDays < 7) {
+        return `${Math.floor(diffDays)}d ago`;
+      } else {
+        return date.toLocaleDateString();
+      }
+    } catch (error) {
+      console.warn('Error formatting timestamp:', error);
+      return 'Unknown';
     }
   };
 
@@ -183,7 +192,7 @@ const ChatScreen: React.FC = () => {
         {item.unreadCount > 0 && (
           <View style={styles.unreadBadge}>
             <Text style={styles.unreadText}>
-              {item.unreadCount > 99 ? '99+' : item.unreadCount}
+              {item.unreadCount > 99 ? '99+' : String(item.unreadCount)}
             </Text>
           </View>
         )}
@@ -248,7 +257,7 @@ const ChatScreen: React.FC = () => {
           {totalUnreadCount > 0 && (
             <View style={styles.headerUnreadBadge}>
               <Text style={styles.headerUnreadText}>
-                {totalUnreadCount > 99 ? '99+' : totalUnreadCount}
+                {totalUnreadCount > 99 ? '99+' : String(totalUnreadCount)}
               </Text>
             </View>
           )}

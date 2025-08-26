@@ -137,7 +137,7 @@ const StoreAnalyticsScreen: React.FC = () => {
           productData.map((product: any, index: number) => (
             <View key={index} style={styles.productRow}>
               <View style={styles.rankContainer}>
-                <Text style={styles.rank}>#{index + 1}</Text>
+                <Text style={styles.rank}>#{String(index + 1)}</Text>
               </View>
               <View style={styles.productInfo}>
                 <Text style={styles.productName}>{product.name}</Text>

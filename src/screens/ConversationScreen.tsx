@@ -46,8 +46,17 @@ interface MessageBubbleProps {
 
 const MessageBubble: React.FC<MessageBubbleProps> = ({ message, isCurrentUser }) => {
   const formatTime = (timestamp: any) => {
-    const date = new Date(timestamp);
-    return date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+    if (!timestamp) return '';
+    try {
+      const date = new Date(timestamp);
+      if (isNaN(date.getTime())) {
+        return '';
+      }
+      return date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+    } catch (error) {
+      console.warn('Error formatting time:', error);
+      return '';
+    }
   };
 
   return (
@@ -156,7 +165,10 @@ const ConversationScreen: React.FC = () => {
   };
 
   const loadMessages = async () => {
-    if (!user?.uid || !conversationId) return;
+    if (!user?.uid || !conversationId) {
+      console.warn('Missing user ID or conversation ID for loading messages');
+      return;
+    }
     
     try {
       // Query messages for this conversation
@@ -180,11 +192,13 @@ const ConversationScreen: React.FC = () => {
       
       snapshot.forEach((doc) => {
         const data = doc.data();
-        messageList.push({
-          id: doc.id,
-          ...data,
-          conversationKey: conversationId,
-        } as Message);
+        if (data && data.content) {  // Validate message data
+          messageList.push({
+            id: doc.id,
+            ...data,
+            conversationKey: conversationId,
+          } as Message);
+        }
       });
       
       setMessages(messageList);
@@ -201,53 +215,63 @@ const ConversationScreen: React.FC = () => {
       }, 100);
     } catch (error) {
       console.error('Error loading messages:', error);
-      Alert.alert('Error', 'Failed to load messages');
+      Alert.alert('Error', 'Failed to load messages. Please check your connection.');
     }
   };
 
   const subscribeToMessages = () => {
-    if (!user?.uid || !conversationId) return;
+    if (!user?.uid || !conversationId) {
+      console.warn('Missing user ID or conversation ID for message subscription');
+      return;
+    }
     
-    const messagesQuery = query(
-      collection(db, 'messages'),
-      or(
-        and(
-          where('fromUserId', '==', user.uid),
-          where('toUserId', '==', otherUserId)
+    try {
+      const messagesQuery = query(
+        collection(db, 'messages'),
+        or(
+          and(
+            where('fromUserId', '==', user.uid),
+            where('toUserId', '==', otherUserId)
+          ),
+          and(
+            where('fromUserId', '==', otherUserId),
+            where('toUserId', '==', user.uid)
+          )
         ),
-        and(
-          where('fromUserId', '==', otherUserId),
-          where('toUserId', '==', user.uid)
-        )
-      ),
-      orderBy('timestamp', 'asc')
-    );
-    
-    const unsubscribe = onSnapshot(messagesQuery, (snapshot) => {
-      const messageList: Message[] = [];
+        orderBy('timestamp', 'asc')
+      );
       
-      snapshot.forEach((doc) => {
-        const data = doc.data();
-        messageList.push({
-          id: doc.id,
-          ...data,
-          conversationKey: conversationId,
-        } as Message);
+      const unsubscribe = onSnapshot(messagesQuery, (snapshot) => {
+        const messageList: Message[] = [];
+        
+        snapshot.forEach((doc) => {
+          const data = doc.data();
+          if (data && data.content) {  // Validate message data
+            messageList.push({
+              id: doc.id,
+              ...data,
+              conversationKey: conversationId,
+            } as Message);
+          }
+        });
+        
+        setMessages(messageList);
+        
+        // Auto-scroll to bottom when new messages arrive
+        setTimeout(() => {
+          if (flatListRef.current && messageList.length > 0) {
+            flatListRef.current.scrollToEnd({ animated: true });
+          }
+        }, 100);
+      }, (error) => {
+        console.error('Error in message subscription:', error);
+        // Don't show alert for subscription errors as they might be temporary
       });
       
-      setMessages(messageList);
-      
-      // Auto-scroll to bottom when new messages arrive
-      setTimeout(() => {
-        if (flatListRef.current && messageList.length > 0) {
-          flatListRef.current.scrollToEnd({ animated: true });
-        }
-      }, 100);
-    }, (error) => {
-      console.error('Error in message subscription:', error);
-    });
-    
-    unsubscribeRef.current = unsubscribe;
+      unsubscribeRef.current = unsubscribe;
+    } catch (error) {
+      console.error('Error setting up message subscription:', error);
+    }
   };
 
   const handleSendMessage = async () => {

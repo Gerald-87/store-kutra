@@ -228,7 +228,7 @@ const OrderManagementScreen: React.FC = () => {
       </View>
 
       <View style={styles.orderItems}>
-        <Text style={styles.itemsTitle}>Items ({item.items.length}):</Text>
+        <Text style={styles.itemsTitle}>Items ({String(item.items.length)}):</Text>
         {item.items.slice(0, 2).map((orderItem, index) => (
           <Text key={index} style={styles.itemText}>
             {orderItem.quantity}x {orderItem.title}
@@ -236,7 +236,7 @@ const OrderManagementScreen: React.FC = () => {
         ))}
         {item.items.length > 2 && (
           <Text style={styles.moreItemsText}>
-            +{item.items.length - 2} more items
+            +{String(item.items.length - 2)} more items
           </Text>
         )}
       </View>

@@ -231,7 +231,7 @@ const StoreListScreen: React.FC = () => {
           {isLoading && !refreshing
             ? 'Loading stores...'
             : filteredStores.length > 0 
-              ? `${filteredStores.length} store${filteredStores.length !== 1 ? 's' : ''} available`
+              ? `${String(filteredStores.length)} store${filteredStores.length !== 1 ? 's' : ''} available`
               : 'No stores available'
           }
         </Text>
