@@ -95,7 +95,7 @@ const StoreCard: React.FC<StoreCardProps> = ({ store, onPress, width = 220, comp
               {store.averageRating ? store.averageRating.toFixed(1) : 'New'}
             </Text>
             {store.numberOfRatings && store.numberOfRatings > 0 && (
-              <Text style={styles.ratingCount}>({String(store.numberOfRatings)})</Text>
+              <Text style={styles.ratingCount}>({store.numberOfRatings || 0})</Text>
             )}
           </View>
         </View>

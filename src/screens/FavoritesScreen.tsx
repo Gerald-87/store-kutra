@@ -18,6 +18,7 @@ import { fetchFavorites, removeFromFavorites } from '../store/slices/favoritesSl
 import { Favorite, Listing } from '../types';
 import { collection, doc, getDoc } from 'firebase/firestore';
 import { db } from '../config/firebase';
+import { safeFormatDate } from '../utils/textUtils';
 
 interface FavoriteWithListing extends Favorite {
   listing: Listing;
@@ -137,7 +138,9 @@ const FavoritesScreen: React.FC = () => {
       >
         <Image
           source={{
-            uri: item.listing.imageUrl || 'https://placehold.co/80x80.png?text=No+Image'
+            uri: item.listing.imageBase64 
+              ? `data:image/jpeg;base64,${item.listing.imageBase64}`
+              : item.listing.imageUrl || 'https://placehold.co/80x80.png?text=No+Image'
           }}
           style={styles.listingImage}
         />
@@ -153,7 +156,7 @@ const FavoritesScreen: React.FC = () => {
             {item.listing.category} • {item.listing.condition || 'New'}
           </Text>
           <Text style={styles.addedDate}>
-            Added {new Date(item.addedAt).toLocaleDateString()}
+            Added {safeFormatDate(item.addedAt, 'Unknown date')}
           </Text>
         </View>
         

@@ -18,6 +18,7 @@ import { RentalRequest } from '../types';
 import { collection, query, where, getDocs, orderBy } from 'firebase/firestore';
 import { db } from '../config/firebase';
 import AuthGuard from '../components/AuthGuard';
+import { safeFormatDate, safeFormatDateRange } from '../utils/textUtils';
 
 const MyBookingsScreen: React.FC = () => {
   const navigation = useNavigation();
@@ -175,11 +176,7 @@ const MyBookingsScreen: React.FC = () => {
               <Ionicons name="calendar-outline" size={16} color="#8B7355" />
               <Text style={styles.detailLabel}>Period:</Text>
               <Text style={styles.detailValue}>
-                {item.startDate && !isNaN(new Date(item.startDate).getTime()) 
-                  ? new Date(item.startDate).toLocaleDateString() 
-                  : 'Unknown'} - {item.endDate && !isNaN(new Date(item.endDate).getTime()) 
-                  ? new Date(item.endDate).toLocaleDateString() 
-                  : 'Unknown'}
+                {safeFormatDateRange(item.startDate, item.endDate, 'Unknown dates')}
               </Text>
             </View>
           )}
@@ -198,9 +195,7 @@ const MyBookingsScreen: React.FC = () => {
             <Ionicons name="time-outline" size={16} color="#8B7355" />
             <Text style={styles.detailLabel}>Requested:</Text>
             <Text style={styles.detailValue}>
-              {item.createdAt && !isNaN(new Date(item.createdAt).getTime()) 
-                ? new Date(item.createdAt).toLocaleDateString() 
-                : 'Unknown date'}
+              {safeFormatDate(item.createdAt, 'Unknown date')}
             </Text>
           </View>
         </View>
@@ -279,7 +274,7 @@ const MyBookingsScreen: React.FC = () => {
               color={activeTab === 'sent' ? '#8B4513' : '#8B7355'} 
             />
             <Text style={[styles.tabText, activeTab === 'sent' && styles.activeTabText]}>
-              Sent ({String(sentRequests.length)})
+              Sent ({sentRequests.length})
             </Text>
           </TouchableOpacity>
           
@@ -293,7 +288,7 @@ const MyBookingsScreen: React.FC = () => {
               color={activeTab === 'received' ? '#8B4513' : '#8B7355'} 
             />
             <Text style={[styles.tabText, activeTab === 'received' && styles.activeTabText]}>
-              Received ({String(receivedRequests.length)})
+              Received ({receivedRequests.length})
             </Text>
           </TouchableOpacity>
         </View>

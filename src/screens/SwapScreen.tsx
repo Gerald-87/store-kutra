@@ -546,7 +546,7 @@ const SwapScreen: React.FC = () => {
         {/* Views and status */}
         <View style={styles.statsContainer}>
           <Ionicons name="eye-outline" size={12} color="#8B7355" />
-          <Text style={styles.viewsText}>{item.views || 0} views</Text>
+          <Text style={styles.viewsText}>{String(item.views || 0)} views</Text>
           {item.isActive === false && (
             <Text style={styles.inactiveText}>• Inactive</Text>
           )}

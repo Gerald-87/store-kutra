@@ -16,6 +16,7 @@ import { useSelector } from 'react-redux';
 import { RootState } from '../store';
 import NotificationService, { NotificationData } from '../services/NotificationService';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { safeFormatRelativeTime } from '../utils/textUtils';
 
 const NotificationScreen: React.FC = () => {
   const [notifications, setNotifications] = useState<NotificationData[]>([]);
@@ -191,37 +192,7 @@ const NotificationScreen: React.FC = () => {
   };
 
   const formatTime = (dateString: string) => {
-    if (!dateString) {
-      return 'Unknown';
-    }
-    
-    try {
-      const date = new Date(dateString);
-      if (isNaN(date.getTime())) {
-        return 'Unknown';
-      }
-      
-      const now = new Date();
-      const diffInMs = now.getTime() - date.getTime();
-      const diffInMinutes = Math.floor(diffInMs / (1000 * 60));
-      const diffInHours = Math.floor(diffInMinutes / 60);
-      const diffInDays = Math.floor(diffInHours / 24);
-
-      if (diffInMinutes < 1) {
-        return 'Just now';
-      } else if (diffInMinutes < 60) {
-        return `${diffInMinutes}m ago`;
-      } else if (diffInHours < 24) {
-        return `${diffInHours}h ago`;
-      } else if (diffInDays < 7) {
-        return `${diffInDays}d ago`;
-      } else {
-        return date.toLocaleDateString();
-      }
-    } catch (error) {
-      console.error('Error formatting date:', error);
-      return 'Unknown';
-    }
+    return safeFormatRelativeTime(dateString, 'Unknown');
   };
 
   const renderNotificationItem = ({ item }: { item: NotificationData }) => {

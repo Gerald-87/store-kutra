@@ -363,7 +363,7 @@ const StoreDetailScreen: React.FC = () => {
             <Ionicons name="bag-outline" size={24} color="#2D1810" />
             {cart?.totalItems > 0 && (
               <View style={styles.cartBadge}>
-                <Text style={styles.cartBadgeText}>{cart.totalItems}</Text>
+                <Text style={styles.cartBadgeText}>{String(cart.totalItems)}</Text>
               </View>
             )}
           </View>

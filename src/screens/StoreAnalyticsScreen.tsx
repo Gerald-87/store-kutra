@@ -15,13 +15,12 @@ import { Ionicons } from '@expo/vector-icons';
 import { AppDispatch, RootState } from '../store';
 import { fetchStoreDashboardData } from '../store/slices/dashboardSlice';
 import { StackNavigationProp } from '@react-navigation/stack';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { isValidDate } from '../utils/textUtils';
 
 type StoreAnalyticsNavigationProp = StackNavigationProp<any, 'StoreAnalytics'>;
 
 const StoreAnalyticsScreen: React.FC = () => {
   const [refreshing, setRefreshing] = useState(false);
-  const insets = useSafeAreaInsets();
 
   const dispatch = useDispatch<AppDispatch>();
   const navigation = useNavigation<StoreAnalyticsNavigationProp>();
@@ -80,7 +79,7 @@ const StoreAnalyticsScreen: React.FC = () => {
                 <View key={index} style={styles.chartBar}>
                   <View style={[styles.bar, { height: barHeight }]} />
                   <Text style={styles.chartLabel}>
-                    {new Date(day.date).getDate()}
+                    {isValidDate(day.date) ? new Date(day.date).getDate() : '?'}
                   </Text>
                   <Text style={styles.chartValue}>
                     K{day.amount.toFixed(0)}
@@ -110,7 +109,7 @@ const StoreAnalyticsScreen: React.FC = () => {
             <View key={index} style={styles.paymentRow}>
               <View style={styles.paymentInfo}>
                 <Text style={styles.paymentType}>{payment.type}</Text>
-                <Text style={styles.paymentCount}>{payment.count} orders</Text>
+                <Text style={styles.paymentCount}>{String(payment.count)} orders</Text>
               </View>
               <Text style={styles.paymentAmount}>
                 {formatCurrency(payment.amount)}
@@ -159,7 +158,7 @@ const StoreAnalyticsScreen: React.FC = () => {
   };
 
   return (
-    <SafeAreaView style={[styles.container, { paddingTop: insets.top }]}>
+    <SafeAreaView style={styles.container}>
       <StatusBar barStyle="dark-content" backgroundColor="#FFFFFF" />
       
       {/* Header */}
@@ -202,12 +201,12 @@ const StoreAnalyticsScreen: React.FC = () => {
             </View>
             <View style={styles.metricCard}>
               <Ionicons name="bag-check-outline" size={24} color="#8B5CF6" />
-              <Text style={styles.metricValue}>{stats.totalSold}</Text>
+              <Text style={styles.metricValue}>{String(stats.totalSold)}</Text>
               <Text style={styles.metricLabel}>Items Sold</Text>
             </View>
             <View style={styles.metricCard}>
               <Ionicons name="receipt-outline" size={24} color="#EF4444" />
-              <Text style={styles.metricValue}>{stats.todaysOrders}</Text>
+              <Text style={styles.metricValue}>{String(stats.todaysOrders)}</Text>
               <Text style={styles.metricLabel}>Today's Orders</Text>
             </View>
           </View>
@@ -233,15 +232,15 @@ const StoreAnalyticsScreen: React.FC = () => {
           <Text style={styles.sectionTitle}>Order Statistics</Text>
           <View style={styles.statsRow}>
             <View style={styles.statItem}>
-              <Text style={styles.statNumber}>{stats.pendingOrders}</Text>
+              <Text style={styles.statNumber}>{String(stats.pendingOrders)}</Text>
               <Text style={styles.statLabel}>Pending</Text>
             </View>
             <View style={styles.statItem}>
-              <Text style={styles.statNumber}>{stats.deliveredOrders}</Text>
+              <Text style={styles.statNumber}>{String(stats.deliveredOrders)}</Text>
               <Text style={styles.statLabel}>Delivered</Text>
             </View>
             <View style={styles.statItem}>
-              <Text style={styles.statNumber}>{stats.cancelledOrders}</Text>
+              <Text style={styles.statNumber}>{String(stats.cancelledOrders)}</Text>
               <Text style={styles.statLabel}>Cancelled</Text>
             </View>
           </View>

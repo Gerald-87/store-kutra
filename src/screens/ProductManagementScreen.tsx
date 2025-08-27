@@ -20,7 +20,6 @@ import { fetchStoreProducts, updateStoreProduct, deleteStoreProduct } from '../s
 import { Listing, ListingCategory, ListingType } from '../types';
 import { StackNavigationProp } from '@react-navigation/stack';
 import { RootStackParamList } from '../navigation/AppNavigator';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 type ProductManagementNavigationProp = StackNavigationProp<RootStackParamList>;
 
@@ -28,7 +27,6 @@ const ProductManagementScreen: React.FC = () => {
   const [refreshing, setRefreshing] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const [filteredProducts, setFilteredProducts] = useState<Listing[]>([]);
-  const insets = useSafeAreaInsets();
 
   const navigation = useNavigation<ProductManagementNavigationProp>();
   const dispatch = useDispatch<AppDispatch>();
@@ -239,7 +237,7 @@ const ProductManagementScreen: React.FC = () => {
   );
 
   return (
-    <SafeAreaView style={[styles.container, { paddingTop: insets.top }]}>
+    <SafeAreaView style={styles.container}>
       <StatusBar barStyle="dark-content" backgroundColor="#FFFFFF" />
       
       {/* Header */}
@@ -278,21 +276,21 @@ const ProductManagementScreen: React.FC = () => {
       {/* Product Stats */}
       <View style={styles.statsContainer}>
         <View style={styles.statItem}>
-          <Text style={styles.statNumber}>{stats.totalProducts}</Text>
+          <Text style={styles.statNumber}>{String(stats.totalProducts)}</Text>
           <Text style={styles.statLabel}>Total Products</Text>
         </View>
         <View style={styles.statItem}>
-          <Text style={styles.statNumber}>{stats.activeProducts}</Text>
+          <Text style={styles.statNumber}>{String(stats.activeProducts)}</Text>
           <Text style={styles.statLabel}>Active</Text>
         </View>
         <View style={styles.statItem}>
           <Text style={styles.statNumber}>
-            {products.reduce((sum, p) => sum + (p.stock || 0), 0)}
+            {String(products.reduce((sum, p) => sum + (p.stock || 0), 0))}
           </Text>
           <Text style={styles.statLabel}>Total Stock</Text>
         </View>
         <View style={styles.statItem}>
-          <Text style={styles.statNumber}>{stats.outOfStockProducts}</Text>
+          <Text style={styles.statNumber}>{String(stats.outOfStockProducts)}</Text>
           <Text style={styles.statLabel}>Out of Stock</Text>
         </View>
       </View>

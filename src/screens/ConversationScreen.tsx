@@ -14,6 +14,8 @@ import {
   Image,
   Modal,
   Linking,
+  Keyboard,
+  Dimensions,
 } from 'react-native';
 import { useRoute, useNavigation, RouteProp } from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
@@ -36,6 +38,7 @@ import {
 } from 'firebase/firestore';
 import { db } from '../config/firebase';
 import LocationService, { LocationData } from '../services/LocationService';
+import { safeFormatRelativeTime } from '../utils/textUtils';
 
 type ConversationScreenRouteProp = RouteProp<RootStackParamList, 'Conversation'>;
 
@@ -96,8 +99,10 @@ const ConversationScreen: React.FC = () => {
   const [showLocationPicker, setShowLocationPicker] = useState(false);
   const [currentLocation, setCurrentLocation] = useState<LocationData | null>(null);
   const [listingData, setListingData] = useState<Listing | null>(null);
+  const [keyboardHeight, setKeyboardHeight] = useState(0);
   const flatListRef = useRef<FlatList>(null);
   const unsubscribeRef = useRef<(() => void) | null>(null);
+  const textInputRef = useRef<TextInput>(null);
 
   useEffect(() => {
     if (user?.uid && conversationId) {
@@ -105,12 +110,35 @@ const ConversationScreen: React.FC = () => {
       subscribeToMessages();
     }
     
+    // Keyboard event listeners
+    const keyboardWillShowListener = Keyboard.addListener(
+      Platform.OS === 'ios' ? 'keyboardWillShow' : 'keyboardDidShow',
+      (e) => {
+        setKeyboardHeight(e.endCoordinates.height);
+        // Scroll to bottom when keyboard opens with better timing
+        setTimeout(() => {
+          if (flatListRef.current && messages.length > 0) {
+            flatListRef.current.scrollToEnd({ animated: true });
+          }
+        }, Platform.OS === 'ios' ? 50 : 200);
+      }
+    );
+    
+    const keyboardWillHideListener = Keyboard.addListener(
+      Platform.OS === 'ios' ? 'keyboardWillHide' : 'keyboardDidHide',
+      () => {
+        setKeyboardHeight(0);
+      }
+    );
+    
     return () => {
       if (unsubscribeRef.current) {
         unsubscribeRef.current();
       }
+      keyboardWillShowListener.remove();
+      keyboardWillHideListener.remove();
     };
-  }, [user?.uid, conversationId]);
+  }, [user?.uid, conversationId, messages.length]);
 
   useEffect(() => {
     // Load listing data if available
@@ -207,12 +235,12 @@ const ConversationScreen: React.FC = () => {
         messages: messageList
       }));
       
-      // Scroll to bottom after loading
+      // Scroll to bottom after loading with improved timing
       setTimeout(() => {
         if (flatListRef.current && messageList.length > 0) {
           flatListRef.current.scrollToEnd({ animated: true });
         }
-      }, 100);
+      }, 300);
     } catch (error) {
       console.error('Error loading messages:', error);
       Alert.alert('Error', 'Failed to load messages. Please check your connection.');
@@ -257,12 +285,12 @@ const ConversationScreen: React.FC = () => {
         
         setMessages(messageList);
         
-        // Auto-scroll to bottom when new messages arrive
+        // Auto-scroll to bottom when new messages arrive with improved timing
         setTimeout(() => {
           if (flatListRef.current && messageList.length > 0) {
             flatListRef.current.scrollToEnd({ animated: true });
           }
-        }, 100);
+        }, 200);
       }, (error) => {
         console.error('Error in message subscription:', error);
         // Don't show alert for subscription errors as they might be temporary
@@ -281,6 +309,11 @@ const ConversationScreen: React.FC = () => {
     setNewMessage('');
     setSending(true);
     
+    // Keep input focused for continuous messaging
+    if (textInputRef.current) {
+      textInputRef.current.focus();
+    }
+    
     try {
       const messageData = {
         fromUserId: user.uid,
@@ -296,12 +329,12 @@ const ConversationScreen: React.FC = () => {
       
       await dispatch(sendMessage(messageData)).unwrap();
       
-      // Auto-scroll to bottom after sending
+      // Auto-scroll to bottom after sending with improved timing
       setTimeout(() => {
         if (flatListRef.current) {
           flatListRef.current.scrollToEnd({ animated: true });
         }
-      }, 100);
+      }, 150);
     } catch (error) {
       console.error('Error sending message:', error);
       Alert.alert('Error', 'Failed to send message');
@@ -489,7 +522,7 @@ const ConversationScreen: React.FC = () => {
       <KeyboardAvoidingView 
         style={styles.keyboardView}
         behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-        keyboardVerticalOffset={Platform.OS === 'ios' ? 90 : 0}
+        keyboardVerticalOffset={Platform.OS === 'ios' ? 88 : 0}
       >
         {/* Messages List */}
         <FlatList
@@ -503,7 +536,18 @@ const ConversationScreen: React.FC = () => {
           ]}
           ListEmptyComponent={renderEmptyState}
           showsVerticalScrollIndicator={false}
+          keyboardShouldPersistTaps="handled"
+          keyboardDismissMode={Platform.OS === 'ios' ? 'interactive' : 'on-drag'}
+          maintainVisibleContentPosition={{
+            minIndexForVisible: 0,
+            autoscrollToTopThreshold: 10,
+          }}
           onContentSizeChange={() => {
+            if (flatListRef.current && messages.length > 0) {
+              flatListRef.current.scrollToEnd({ animated: false });
+            }
+          }}
+          onLayout={() => {
             if (flatListRef.current && messages.length > 0) {
               flatListRef.current.scrollToEnd({ animated: false });
             }
@@ -520,6 +564,7 @@ const ConversationScreen: React.FC = () => {
               <Ionicons name="location" size={20} color="#8B4513" />
             </TouchableOpacity>
             <TextInput
+              ref={textInputRef}
               style={styles.messageInput}
               value={newMessage}
               onChangeText={setNewMessage}
@@ -530,6 +575,18 @@ const ConversationScreen: React.FC = () => {
               returnKeyType="send"
               onSubmitEditing={handleSendMessage}
               blurOnSubmit={false}
+              enablesReturnKeyAutomatically={true}
+              autoCorrect={true}
+              autoCapitalize="sentences"
+              textAlignVertical="center"
+              onFocus={() => {
+                // Ensure scroll to bottom when input is focused
+                setTimeout(() => {
+                  if (flatListRef.current && messages.length > 0) {
+                    flatListRef.current.scrollToEnd({ animated: true });
+                  }
+                }, 300);
+              }}
             />
             <TouchableOpacity
               style={[
@@ -712,6 +769,7 @@ const styles = StyleSheet.create({
     backgroundColor: '#FFFFFF',
     paddingHorizontal: 16,
     paddingVertical: 12,
+    paddingBottom: Platform.OS === 'ios' ? 12 : 16,
     borderTopWidth: 1,
     borderTopColor: '#E8E2DD',
   },
@@ -728,8 +786,11 @@ const styles = StyleSheet.create({
     fontSize: 16,
     color: '#2D1810',
     maxHeight: 100,
-    paddingVertical: 8,
+    minHeight: 40,
+    paddingVertical: Platform.OS === 'ios' ? 10 : 8,
+    paddingHorizontal: 4,
     paddingRight: 12,
+    textAlignVertical: 'center',
   },
   sendButton: {
     backgroundColor: '#8B4513',

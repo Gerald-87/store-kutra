@@ -242,12 +242,8 @@ const ProductDetailScreen: React.FC = () => {
           <View style={styles.priceContainer}>
             <Text style={styles.price}>
               K{currentListing.price.toFixed(2)}
-              {currentListing.type === ListingType.RENT && currentListing.rentalPeriod && (
-                <Text>/{currentListing.rentalPeriod}</Text>
-              )}
-              {currentListing.type === ListingType.SWAP && (
-                <Text> (Est. Value)</Text>
-              )}
+              {currentListing.type === ListingType.RENT && currentListing.rentalPeriod && `/${currentListing.rentalPeriod}`}
+              {currentListing.type === ListingType.SWAP && ' (Est. Value)'}
             </Text>
             {currentListing.condition && (
               <View style={styles.conditionContainer}>
@@ -303,7 +299,7 @@ const ProductDetailScreen: React.FC = () => {
                 <Text style={styles.infoText}>Period: {currentListing.rentalPeriod}</Text>
               )}
               {currentListing.minimumRentalPeriod && (
-                <Text style={styles.infoText}>Minimum: {currentListing.minimumRentalPeriod} {currentListing.rentalPeriod || 'days'}</Text>
+                <Text style={styles.infoText}>Minimum: {currentListing.minimumRentalPeriod} {currentListing.rentalPeriod || 'months'}</Text>
               )}
               {currentListing.securityDeposit && (
                 <Text style={styles.infoText}>Security Deposit: K{currentListing.securityDeposit.toFixed(2)}</Text>

@@ -12,6 +12,9 @@ import {
   StatusBar,
   Modal,
   FlatList,
+  KeyboardAvoidingView,
+  Platform,
+  Keyboard,
 } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
@@ -258,7 +261,17 @@ const AddProductScreen: React.FC = () => {
         </TouchableOpacity>
       </View>
 
-      <ScrollView style={styles.scrollView} showsVerticalScrollIndicator={false}>
+      <KeyboardAvoidingView 
+        style={styles.keyboardAvoidingView}
+        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+        keyboardVerticalOffset={Platform.OS === 'ios' ? 0 : 20}
+      >
+        <ScrollView 
+          style={styles.scrollView} 
+          showsVerticalScrollIndicator={false}
+          keyboardShouldPersistTaps="handled"
+          contentContainerStyle={styles.scrollContent}
+        >
         {/* Product Images */}
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>Product Images *</Text>
@@ -299,8 +312,11 @@ const AddProductScreen: React.FC = () => {
               placeholder="Enter product title"
               placeholderTextColor="#8B7355"
               maxLength={100}
+              returnKeyType="next"
+              onSubmitEditing={() => Keyboard.dismiss()}
+              blurOnSubmit={false}
             />
-            <Text style={styles.charCount}>{String(productForm.title.length)}/100</Text>
+            <Text style={styles.charCount}>{productForm.title.length}/100</Text>
           </View>
 
           <View style={styles.inputGroup}>
@@ -315,8 +331,11 @@ const AddProductScreen: React.FC = () => {
               numberOfLines={4}
               textAlignVertical="top"
               maxLength={500}
+              returnKeyType="done"
+              onSubmitEditing={() => Keyboard.dismiss()}
+              blurOnSubmit={true}
             />
-            <Text style={styles.charCount}>{String(productForm.description.length)}/500</Text>
+            <Text style={styles.charCount}>{productForm.description.length}/500</Text>
           </View>
 
           <View style={styles.inputRow}>
@@ -329,6 +348,9 @@ const AddProductScreen: React.FC = () => {
                 placeholder="0.00"
                 placeholderTextColor="#8B7355"
                 keyboardType="decimal-pad"
+                returnKeyType="next"
+                onSubmitEditing={() => Keyboard.dismiss()}
+                blurOnSubmit={false}
               />
             </View>
 
@@ -342,6 +364,9 @@ const AddProductScreen: React.FC = () => {
                 placeholderTextColor="#8B7355"
                 keyboardType="number-pad"
                 editable={productForm.type === ListingType.SELL}
+                returnKeyType="done"
+                onSubmitEditing={() => Keyboard.dismiss()}
+                blurOnSubmit={true}
               />
             </View>
           </View>
@@ -428,7 +453,8 @@ const AddProductScreen: React.FC = () => {
             </View>
           </View>
         </View>
-      </ScrollView>
+        </ScrollView>
+      </KeyboardAvoidingView>
 
       {renderCategoryModal()}
     </SafeAreaView>
@@ -471,6 +497,12 @@ const styles = StyleSheet.create({
   },
   scrollView: {
     flex: 1,
+  },
+  keyboardAvoidingView: {
+    flex: 1,
+  },
+  scrollContent: {
+    paddingBottom: 40,
   },
   section: {
     backgroundColor: '#FFFFFF',

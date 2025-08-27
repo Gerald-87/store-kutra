@@ -47,29 +47,46 @@ export const sendMessage = createAsyncThunk(
 export const fetchConversations = createAsyncThunk(
   'chat/fetchConversations',
   async (userId: string) => {
-    const q1 = query(
-      collection(db, 'messages'),
-      where('fromUserId', '==', userId),
-      orderBy('timestamp', 'desc')
-    );
-    
-    const q2 = query(
-      collection(db, 'messages'),
-      where('toUserId', '==', userId),
-      orderBy('timestamp', 'desc')
-    );
-    
-    const [snapshot1, snapshot2] = await Promise.all([getDocs(q1), getDocs(q2)]);
-    
-    const messages: Message[] = [];
-    snapshot1.forEach((doc) => {
-      messages.push({ id: doc.id, ...doc.data() } as Message);
-    });
-    snapshot2.forEach((doc) => {
-      messages.push({ id: doc.id, ...doc.data() } as Message);
-    });
-    
-    return messages;
+    try {
+      // Get all messages where user is either sender or receiver
+      const q1 = query(
+        collection(db, 'messages'),
+        where('fromUserId', '==', userId),
+        orderBy('timestamp', 'desc')
+      );
+      
+      const q2 = query(
+        collection(db, 'messages'),
+        where('toUserId', '==', userId),
+        orderBy('timestamp', 'desc')
+      );
+      
+      const [snapshot1, snapshot2] = await Promise.all([getDocs(q1), getDocs(q2)]);
+      
+      const allMessages: Message[] = [];
+      
+      // Collect all sent messages
+      snapshot1.forEach((doc) => {
+        allMessages.push({ id: doc.id, ...doc.data() } as Message);
+      });
+      
+      // Collect all received messages
+      snapshot2.forEach((doc) => {
+        allMessages.push({ id: doc.id, ...doc.data() } as Message);
+      });
+      
+      // Remove duplicates (in case same message appears in both queries)
+      const uniqueMessages = allMessages.filter((message, index, self) => 
+        index === self.findIndex((m) => m.id === message.id)
+      );
+      
+      console.log(`Fetched ${uniqueMessages.length} unique messages for user ${userId}`);
+      
+      return uniqueMessages;
+    } catch (error) {
+      console.error('Error fetching conversations:', error);
+      throw error;
+    }
   }
 );
 
@@ -186,12 +203,12 @@ const chatSlice = createSlice({
       })
       .addCase(fetchConversations.fulfilled, (state, action) => {
         state.isLoading = false;
-        // Group messages by conversation
+        // Group messages by conversation key
         const conversations: { [key: string]: Message[] } = {};
         
         action.payload.forEach(message => {
-          const conversationKey = message.conversationKey || 
-            [message.fromUserId, message.toUserId].sort().join('_');
+          // Create a consistent conversation key using sorted user IDs
+          const conversationKey = [message.fromUserId, message.toUserId].sort().join('_');
           
           if (!conversations[conversationKey]) {
             conversations[conversationKey] = [];
@@ -200,8 +217,17 @@ const chatSlice = createSlice({
           conversations[conversationKey].push(message);
         });
         
+        // Sort messages within each conversation by timestamp
+        Object.keys(conversations).forEach(key => {
+          conversations[key].sort((a, b) => 
+            new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime()
+          );
+        });
+        
         state.conversations = conversations;
         state.activeConversations = Object.keys(conversations);
+        
+        console.log(`Organized ${Object.keys(conversations).length} conversations:`, Object.keys(conversations));
       })
       .addCase(fetchConversations.rejected, (state, action) => {
         state.isLoading = false;
@@ -230,5 +256,4 @@ const chatSlice = createSlice({
 });
 
 export const { addMessage, setConversationMessages, clearError } = chatSlice.actions;
-export { fetchConversationMessages };
 export default chatSlice.reducer;

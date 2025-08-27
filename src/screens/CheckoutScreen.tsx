@@ -378,7 +378,7 @@ const CheckoutScreen: React.FC = () => {
           <Text style={styles.sectionTitle}>Order Summary</Text>
           <View style={styles.summaryContainer}>
             <Text style={styles.summaryText}>
-              {String(items.length)} item{items.length !== 1 ? 's' : ''}
+              {items.length} item{items.length !== 1 ? 's' : ''}
             </Text>
             <Text style={styles.summaryAmount}>K{totalAmount.toFixed(2)}</Text>
           </View>

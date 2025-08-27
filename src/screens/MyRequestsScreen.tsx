@@ -18,6 +18,7 @@ import { SwapRequest } from '../types';
 import { collection, query, where, getDocs, orderBy } from 'firebase/firestore';
 import { db } from '../config/firebase';
 import AuthGuard from '../components/AuthGuard';
+import { safeFormatDate } from '../utils/textUtils';
 
 const MyRequestsScreen: React.FC = () => {
   const navigation = useNavigation();
@@ -196,7 +197,7 @@ const MyRequestsScreen: React.FC = () => {
             <Ionicons name="time-outline" size={16} color="#8B7355" />
             <Text style={styles.detailLabel}>Date:</Text>
             <Text style={styles.detailValue}>
-              {new Date(item.createdAt).toLocaleDateString()}
+              {safeFormatDate(item.createdAt, 'Unknown date')}
             </Text>
           </View>
         </View>

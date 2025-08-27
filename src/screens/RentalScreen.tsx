@@ -280,7 +280,7 @@ const RentalScreen: React.FC = () => {
 
     Alert.prompt(
       'Update Price',
-      'Enter new daily rental price:',
+      'Enter new monthly rental price:',
       [
         { text: 'Cancel', style: 'cancel' },
         {
@@ -558,7 +558,7 @@ const RentalScreen: React.FC = () => {
         )}
         
         <Text style={styles.price}>
-          K{item.price.toFixed(2)}/{item.rentalPeriod || 'day'}
+          K{item.price.toFixed(2)}/{item.rentalPeriod || 'month'}
         </Text>
         
         {/* Contact info preview */}
@@ -654,13 +654,13 @@ const RentalScreen: React.FC = () => {
         )}
         
         <Text style={styles.price}>
-          K{item.price.toFixed(2)}/{item.rentalPeriod || 'day'}
+          K{item.price.toFixed(2)}/{item.rentalPeriod || 'month'}
         </Text>
         
         {/* Views counter */}
         <View style={styles.statsContainer}>
           <Ionicons name="eye-outline" size={12} color="#8B7355" />
-          <Text style={styles.viewsText}>{item.views || 0} views</Text>
+          <Text style={styles.viewsText}>{String(item.views || 0)} views</Text>
           {item.isActive === false && (
             <Text style={styles.inactiveText}>• Inactive</Text>
           )}
@@ -989,7 +989,7 @@ const RentalScreen: React.FC = () => {
                     />
                     <View>
                       <Text style={styles.selectedItemTitle}>{selectedListing.title}</Text>
-                      <Text style={styles.selectedItemPrice}>K{selectedListing.price.toFixed(2)}/day</Text>
+                      <Text style={styles.selectedItemPrice}>K{selectedListing.price.toFixed(2)}/month</Text>
                     </View>
                   </View>
                 </View>

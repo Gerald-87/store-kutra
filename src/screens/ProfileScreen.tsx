@@ -12,6 +12,9 @@ import {
   TextInput,
   KeyboardAvoidingView,
   Platform,
+  Keyboard,
+  SafeAreaView,
+  StatusBar,
 } from 'react-native';
 import { useDispatch, useSelector } from 'react-redux';
 import { useNavigation, CompositeNavigationProp } from '@react-navigation/native';
@@ -351,7 +354,7 @@ const ProfileScreen: React.FC = () => {
               {isLoadingStats ? (
                 <ActivityIndicator size="small" color="#8B4513" />
               ) : (
-                <Text style={styles.statValue}>{totalItems}</Text>
+                <Text style={styles.statValue}>{String(totalItems)}</Text>
               )}
               <Text style={styles.statLabel}>In Cart</Text>
             </View>
@@ -481,7 +484,11 @@ const ProfileScreen: React.FC = () => {
             </TouchableOpacity>
           </View>
           
-          <ScrollView style={styles.modalContent} showsVerticalScrollIndicator={false}>
+          <ScrollView 
+            style={styles.modalContent} 
+            showsVerticalScrollIndicator={false}
+            keyboardShouldPersistTaps="handled"
+          >
             <View style={styles.formGroup}>
               <Text style={styles.formLabel}>Name</Text>
               <TextInput
@@ -490,6 +497,9 @@ const ProfileScreen: React.FC = () => {
                 onChangeText={(text) => setEditForm({...editForm, name: text})}
                 placeholder="Enter your name"
                 placeholderTextColor="#8B7355"
+                returnKeyType="next"
+                onSubmitEditing={() => Keyboard.dismiss()}
+                blurOnSubmit={false}
               />
             </View>
             
@@ -503,6 +513,9 @@ const ProfileScreen: React.FC = () => {
                 placeholderTextColor="#8B7355"
                 keyboardType="email-address"
                 autoCapitalize="none"
+                returnKeyType="next"
+                onSubmitEditing={() => Keyboard.dismiss()}
+                blurOnSubmit={false}
               />
             </View>
             
@@ -514,6 +527,9 @@ const ProfileScreen: React.FC = () => {
                 onChangeText={(text) => setEditForm({...editForm, campus: text})}
                 placeholder="Enter your campus (optional)"
                 placeholderTextColor="#8B7355"
+                returnKeyType="done"
+                onSubmitEditing={() => Keyboard.dismiss()}
+                blurOnSubmit={true}
               />
             </View>
           </ScrollView>

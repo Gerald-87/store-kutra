@@ -20,7 +20,6 @@ import { Order, OrderStatus } from '../types';
 import { StackNavigationProp } from '@react-navigation/stack';
 import { RootStackParamList } from '../navigation/AppNavigator';
 import NotificationService from '../services/NotificationService';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 type OrderManagementNavigationProp = StackNavigationProp<RootStackParamList>;
 
@@ -30,7 +29,6 @@ const OrderManagementScreen: React.FC = () => {
   const [filteredOrders, setFilteredOrders] = useState<Order[]>([]);
   const [showStatusModal, setShowStatusModal] = useState(false);
   const [selectedOrder, setSelectedOrder] = useState<Order | null>(null);
-  const insets = useSafeAreaInsets();
 
   const navigation = useNavigation<OrderManagementNavigationProp>();
   const dispatch = useDispatch<AppDispatch>();
@@ -306,7 +304,7 @@ const OrderManagementScreen: React.FC = () => {
   );
 
   return (
-    <SafeAreaView style={[styles.container, { paddingTop: insets.top }]}>
+    <SafeAreaView style={styles.container}>
       <StatusBar barStyle="dark-content" backgroundColor="#FFFFFF" />
       
       {/* Header */}
@@ -324,11 +322,11 @@ const OrderManagementScreen: React.FC = () => {
       {/* Order Stats */}
       <View style={styles.statsContainer}>
         <View style={styles.statItem}>
-          <Text style={styles.statNumber}>{stats.totalOrders}</Text>
+          <Text style={styles.statNumber}>{String(stats.totalOrders)}</Text>
           <Text style={styles.statLabel}>Total Orders</Text>
         </View>
         <View style={styles.statItem}>
-          <Text style={styles.statNumber}>{stats.pendingOrders}</Text>
+          <Text style={styles.statNumber}>{String(stats.pendingOrders)}</Text>
           <Text style={styles.statLabel}>Pending</Text>
         </View>
         <View style={styles.statItem}>

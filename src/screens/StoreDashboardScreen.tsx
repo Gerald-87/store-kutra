@@ -18,7 +18,6 @@ import { AppDispatch, RootState } from '../store';
 import { fetchStoreDashboardData } from '../store/slices/dashboardSlice';
 import { StackNavigationProp } from '@react-navigation/stack';
 import NotificationService, { NotificationData } from '../services/NotificationService';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import NotificationPopup from '../components/NotificationPopup';
 
 type StoreDashboardNavigationProp = StackNavigationProp<any, 'StoreDashboard'>;
@@ -27,7 +26,6 @@ const StoreDashboardScreen: React.FC = () => {
   const [refreshing, setRefreshing] = useState(false);
   const [unreadNotifications, setUnreadNotifications] = useState(0);
   const [showNotificationPopup, setShowNotificationPopup] = useState(false);
-  const insets = useSafeAreaInsets();
 
   const dispatch = useDispatch<AppDispatch>();
   const navigation = useNavigation<StoreDashboardNavigationProp>();
@@ -110,7 +108,7 @@ const StoreDashboardScreen: React.FC = () => {
   };
 
   return (
-    <SafeAreaView style={[styles.container, { paddingTop: insets.top }]}>
+    <SafeAreaView style={styles.container}>
       <StatusBar barStyle="dark-content" backgroundColor="#FFFFFF" />
       
       {/* Header */}
@@ -168,22 +166,22 @@ const StoreDashboardScreen: React.FC = () => {
           <View style={styles.statsGrid}>
             <View style={styles.statCard}>
               <Ionicons name="cube-outline" size={20} color="#8B4513" />
-              <Text style={styles.statNumber}>{stats.totalProducts}</Text>
+              <Text style={styles.statNumber}>{String(stats.totalProducts)}</Text>
               <Text style={styles.statLabel}>Total Products</Text>
             </View>
             <View style={styles.statCard}>
               <Ionicons name="checkmark-circle-outline" size={20} color="#10B981" />
-              <Text style={styles.statNumber}>{stats.inStockProducts}</Text>
+              <Text style={styles.statNumber}>{String(stats.inStockProducts)}</Text>
               <Text style={styles.statLabel}>In Stock</Text>
             </View>
             <View style={styles.statCard}>
               <Ionicons name="cash-outline" size={20} color="#F59E0B" />
-              <Text style={styles.statNumber}>K{stats.totalRevenue.toFixed(0)}</Text>
+              <Text style={styles.statNumber}>K{String(stats.totalRevenue.toFixed(0))}</Text>
               <Text style={styles.statLabel}>Revenue</Text>
             </View>
             <View style={styles.statCard}>
               <Ionicons name="bag-check-outline" size={20} color="#8B5CF6" />
-              <Text style={styles.statNumber}>{stats.totalSold}</Text>
+              <Text style={styles.statNumber}>{String(stats.totalSold)}</Text>
               <Text style={styles.statLabel}>Sold</Text>
             </View>
           </View>
@@ -191,22 +189,22 @@ const StoreDashboardScreen: React.FC = () => {
           <View style={styles.statsGrid}>
             <View style={styles.statCard}>
               <Ionicons name="time-outline" size={20} color="#F59E0B" />
-              <Text style={styles.statNumber}>{stats.pendingOrders}</Text>
+              <Text style={styles.statNumber}>{String(stats.pendingOrders)}</Text>
               <Text style={styles.statLabel}>Pending</Text>
             </View>
             <View style={styles.statCard}>
               <Ionicons name="checkmark-done-outline" size={20} color="#10B981" />
-              <Text style={styles.statNumber}>{stats.deliveredOrders}</Text>
+              <Text style={styles.statNumber}>{String(stats.deliveredOrders)}</Text>
               <Text style={styles.statLabel}>Delivered</Text>
             </View>
             <View style={styles.statCard}>
               <Ionicons name="close-circle-outline" size={20} color="#EF4444" />
-              <Text style={styles.statNumber}>{stats.cancelledOrders}</Text>
+              <Text style={styles.statNumber}>{String(stats.cancelledOrders)}</Text>
               <Text style={styles.statLabel}>Cancelled</Text>
             </View>
             <View style={styles.statCard}>
               <Ionicons name="trending-up-outline" size={20} color="#06B6D4" />
-              <Text style={styles.statNumber}>K{stats.todaysSales.toFixed(0)}</Text>
+              <Text style={styles.statNumber}>K{String(stats.todaysSales.toFixed(0))}</Text>
               <Text style={styles.statLabel}>Today's Sales</Text>
             </View>
           </View>

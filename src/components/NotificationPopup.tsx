@@ -13,6 +13,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { useSelector } from 'react-redux';
 import { RootState } from '../store';
 import NotificationService, { NotificationData } from '../services/NotificationService';
+import { safeFormatRelativeTime } from '../utils/textUtils';
 
 const { width, height } = Dimensions.get('window');
 
@@ -167,34 +168,7 @@ const NotificationPopup: React.FC<NotificationPopupProps> = ({
   };
 
   const formatTime = (dateString: string) => {
-    if (!dateString) {
-      return 'Unknown';
-    }
-    
-    try {
-      const date = new Date(dateString);
-      if (isNaN(date.getTime())) {
-        return 'Unknown';
-      }
-      
-      const now = new Date();
-      const diffInMs = now.getTime() - date.getTime();
-      const diffInMinutes = Math.floor(diffInMs / (1000 * 60));
-      const diffInHours = Math.floor(diffInMinutes / 60);
-
-      if (diffInMinutes < 1) {
-        return 'Just now';
-      } else if (diffInMinutes < 60) {
-        return `${diffInMinutes}m ago`;
-      } else if (diffInHours < 24) {
-        return `${diffInHours}h ago`;
-      } else {
-        return date.toLocaleDateString();
-      }
-    } catch (error) {
-      console.error('Error formatting date:', error);
-      return 'Unknown';
-    }
+    return safeFormatRelativeTime(dateString, 'Unknown');
   };
 
   const renderNotificationItem = ({ item }: { item: NotificationData }) => {

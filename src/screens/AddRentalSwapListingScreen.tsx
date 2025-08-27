@@ -13,6 +13,9 @@ import {
   Modal,
   FlatList,
   Switch,
+  KeyboardAvoidingView,
+  Platform,
+  Keyboard,
 } from 'react-native';
 import { useNavigation, useRoute } from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
@@ -86,7 +89,7 @@ const AddRentalSwapListingScreen: React.FC = () => {
       preferredContactMethod: 'chat',
       availableHours: '9:00 AM - 6:00 PM',
     },
-    rentalPeriod: 'daily',
+    rentalPeriod: 'monthly',
     minimumRentalPeriod: '1',
     securityDeposit: '',
     swapPreferences: [],
@@ -408,7 +411,17 @@ const AddRentalSwapListingScreen: React.FC = () => {
         </TouchableOpacity>
       </View>
 
-      <ScrollView style={styles.scrollView} showsVerticalScrollIndicator={false}>
+      <KeyboardAvoidingView 
+        style={styles.keyboardAvoidingView}
+        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+        keyboardVerticalOffset={Platform.OS === 'ios' ? 0 : 20}
+      >
+        <ScrollView 
+          style={styles.scrollView} 
+          showsVerticalScrollIndicator={false}
+          keyboardShouldPersistTaps="handled"
+          contentContainerStyle={styles.scrollContent}
+        >
         {/* Images Section */}
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>Photos *</Text>
@@ -448,6 +461,9 @@ const AddRentalSwapListingScreen: React.FC = () => {
               onChangeText={(text) => setListingForm(prev => ({ ...prev, title: text }))}
               placeholder="Enter listing title"
               maxLength={100}
+              returnKeyType="next"
+              onSubmitEditing={() => Keyboard.dismiss()}
+              blurOnSubmit={false}
             />
           </View>
 
@@ -462,12 +478,15 @@ const AddRentalSwapListingScreen: React.FC = () => {
               numberOfLines={4}
               textAlignVertical="top"
               maxLength={500}
+              returnKeyType="done"
+              onSubmitEditing={() => Keyboard.dismiss()}
+              blurOnSubmit={true}
             />
           </View>
 
           <View style={styles.inputGroup}>
             <Text style={styles.inputLabel}>
-              {listingType === 'rent' ? 'Price per day (K) *' : 'Estimated Value (K) *'}
+              {listingType === 'rent' ? 'Price per month (K) *' : 'Estimated Value (K) *'}
             </Text>
             <TextInput
               style={styles.textInput}
@@ -475,6 +494,9 @@ const AddRentalSwapListingScreen: React.FC = () => {
               onChangeText={(text) => setListingForm(prev => ({ ...prev, price: text }))}
               placeholder="0.00"
               keyboardType="decimal-pad"
+              returnKeyType="done"
+              onSubmitEditing={() => Keyboard.dismiss()}
+              blurOnSubmit={true}
             />
           </View>
         </View>
@@ -591,6 +613,7 @@ const AddRentalSwapListingScreen: React.FC = () => {
           </View>
         </View>
       </ScrollView>
+    </KeyboardAvoidingView>
 
       {/* Category Modal */}
       <Modal visible={showCategoryModal} transparent animationType="slide">
@@ -671,6 +694,8 @@ const styles = StyleSheet.create({
   headerTitle: { fontSize: 18, fontWeight: '700', color: '#2D1810' },
   saveButtonText: { color: '#8B4513', fontSize: 16, fontWeight: '600' },
   scrollView: { flex: 1 },
+  keyboardAvoidingView: { flex: 1 },
+  scrollContent: { paddingBottom: 40 },
   section: { backgroundColor: '#FFFFFF', marginBottom: 8, padding: 20 },
   sectionTitle: { fontSize: 16, fontWeight: '700', color: '#2D1810', marginBottom: 8 },
   sectionSubtitle: { fontSize: 14, color: '#8B7355', marginBottom: 16 },

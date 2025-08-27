@@ -1,7 +1,7 @@
 apply plugin: "com.android.application"
 apply plugin: "org.jetbrains.kotlin.android"
 apply plugin: "com.facebook.react"
-// apply plugin: "com.google.gms.google-services" // Temporarily disabled for build
+apply plugin: "com.google.gms.google-services"
 
 def projectRoot = rootDir.getAbsoluteFile().getParentFile().getAbsolutePath()
 
@@ -84,7 +84,7 @@ def jscFlavor = 'io.github.react-native-community:jsc-android:2026004.+'
 
 android {
     ndkVersion rootProject.ext.ndkVersion
-
+    
     buildToolsVersion rootProject.ext.buildToolsVersion
     compileSdk rootProject.ext.compileSdkVersion
 
@@ -97,8 +97,10 @@ android {
         versionName "1.0.0"
         
         ndk {
-            abiFilters "armeabi-v7a", "arm64-v8a", "x86", "x86_64"
+            abiFilters "arm64-v8a"
         }
+        
+
     }
     signingConfigs {
         debug {
@@ -122,6 +124,15 @@ android {
             crunchPngs (findProperty('android.enablePngCrunchInReleaseBuilds')?.toBoolean() ?: true)
         }
     }
+    
+    // Configuration to handle duplicate classes
+    configurations {
+        all {
+            exclude group: 'com.android.support', module: 'support-compat'
+            exclude group: 'com.android.support', module: 'support-annotations'
+        }
+    }
+    
     packagingOptions {
         jniLibs {
             useLegacyPackaging (findProperty('expo.useLegacyPackaging')?.toBoolean() ?: false)
@@ -129,10 +140,27 @@ android {
         pickFirst '**/libc++_shared.so'
         pickFirst '**/libjsc.so'
         pickFirst '**/libhermes.so'
+        pickFirst '**/libfbjni.so'
+        pickFirst '**/libreactnative.so'
+        pickFirst '**/libglog.so'
+        pickFirst '**/libfolly_json.so'
+        pickFirst '**/libfolly_runtime.so'
+        pickFirst '**/libgflags.so'
+        pickFirst '**/libexpo-modules-core.so'
+        pickFirst '**/librnscreens.so'
+        pickFirst '**/libgesturehandler.so'
+        doNotStrip '**/*.so'
+        exclude 'META-INF/DEPENDENCIES'
+        exclude 'META-INF/LICENSE'
+        exclude 'META-INF/LICENSE.txt'
+        exclude 'META-INF/NOTICE'
+        exclude 'META-INF/NOTICE.txt'
     }
+    
     androidResources {
         ignoreAssetsPattern '!.svn:!.git:!.ds_store:!*.scc:!CVS:!thumbs.db:!picasa.ini:!*~'
     }
+
 }
 
 // Apply static values from `gradle.properties` to the `android.packagingOptions`
@@ -158,21 +186,6 @@ android {
 dependencies {
     // The version of react-native is set by the React Native Gradle Plugin
     implementation("com.facebook.react:react-android")
-
-    // Fix for AndroidX conflicts - force AndroidX versions
-    configurations.all {
-        resolutionStrategy {
-            force 'androidx.core:core:1.13.1'
-            force 'androidx.legacy:legacy-support-core-utils:1.0.0'
-            force 'androidx.legacy:legacy-support-v4:1.0.0'
-            
-            // Force specific C++ runtime to avoid linking issues
-            force 'org.webkit:android-jsc:+'
-        }
-        exclude group: 'com.android.support', module: 'support-compat'
-        exclude group: 'com.android.support', module: 'support-v4'
-        exclude group: 'com.android.support', module: 'support-core-utils'
-    }
 
     def isGifEnabled = (findProperty('expo.gif.enabled') ?: "") == "true";
     def isWebpEnabled = (findProperty('expo.webp.enabled') ?: "") == "true";

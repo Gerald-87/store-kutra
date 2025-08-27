@@ -9,6 +9,8 @@ import {
   ScrollView,
   KeyboardAvoidingView,
   Platform,
+  Keyboard,
+  SafeAreaView,
 } from 'react-native';
 import { useDispatch, useSelector } from 'react-redux';
 import { Ionicons } from '@expo/vector-icons';
@@ -95,11 +97,17 @@ const ProfileAuthScreen: React.FC = () => {
   };
 
   return (
-    <KeyboardAvoidingView 
-      style={styles.container}
-      behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-    >
-      <ScrollView contentContainerStyle={styles.scrollContainer}>
+    <SafeAreaView style={styles.safeArea}>
+      <KeyboardAvoidingView 
+        style={styles.container}
+        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+        keyboardVerticalOffset={Platform.OS === 'ios' ? 0 : 20}
+      >
+        <ScrollView 
+          contentContainerStyle={styles.scrollContainer}
+          keyboardShouldPersistTaps="handled"
+          showsVerticalScrollIndicator={false}
+        >
         <View style={styles.header}>
           <Ionicons name="person-circle" size={80} color="#8B4513" />
           <Text style={styles.title}>
@@ -126,6 +134,9 @@ const ProfileAuthScreen: React.FC = () => {
                   onChangeText={(value) => updateFormData('name', value)}
                   placeholderTextColor="#8B7355"
                   autoCapitalize="words"
+                  returnKeyType="next"
+                  onSubmitEditing={() => Keyboard.dismiss()}
+                  blurOnSubmit={false}
                 />
               </View>
             </View>
@@ -144,6 +155,9 @@ const ProfileAuthScreen: React.FC = () => {
                 keyboardType="email-address"
                 autoCapitalize="none"
                 autoCorrect={false}
+                returnKeyType="next"
+                onSubmitEditing={() => Keyboard.dismiss()}
+                blurOnSubmit={false}
               />
             </View>
           </View>
@@ -160,6 +174,9 @@ const ProfileAuthScreen: React.FC = () => {
                 placeholderTextColor="#8B7355"
                 secureTextEntry={!showPassword}
                 autoCapitalize="none"
+                returnKeyType={isLogin ? "go" : "next"}
+                onSubmitEditing={() => isLogin ? handleSubmit() : Keyboard.dismiss()}
+                blurOnSubmit={false}
               />
               <TouchableOpacity onPress={() => setShowPassword(!showPassword)}>
                 <Ionicons 
@@ -185,6 +202,9 @@ const ProfileAuthScreen: React.FC = () => {
                     placeholderTextColor="#8B7355"
                     secureTextEntry={!showConfirmPassword}
                     autoCapitalize="none"
+                    returnKeyType="next"
+                    onSubmitEditing={() => Keyboard.dismiss()}
+                    blurOnSubmit={false}
                   />
                   <TouchableOpacity onPress={() => setShowConfirmPassword(!showConfirmPassword)}>
                     <Ionicons 
@@ -207,6 +227,9 @@ const ProfileAuthScreen: React.FC = () => {
                     onChangeText={(value) => updateFormData('phone', value)}
                     placeholderTextColor="#8B7355"
                     keyboardType="phone-pad"
+                    returnKeyType="done"
+                    onSubmitEditing={() => Keyboard.dismiss()}
+                    blurOnSubmit={true}
                   />
                 </View>
               </View>
@@ -247,13 +270,17 @@ const ProfileAuthScreen: React.FC = () => {
         </View>
       </ScrollView>
     </KeyboardAvoidingView>
+    </SafeAreaView>
   );
 };
 
 const styles = StyleSheet.create({
-  container: {
+  safeArea: {
     flex: 1,
     backgroundColor: '#F7F3F0',
+  },
+  container: {
+    flex: 1,
   },
   scrollContainer: {
     flexGrow: 1,

@@ -21,6 +21,7 @@ import { Message } from '../types';
 import { StackNavigationProp } from '@react-navigation/stack';
 import { RootStackParamList } from '../navigation/AppNavigator';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { safeFormatRelativeTime } from '../utils/textUtils';
 
 type ChatScreenNavigationProp = StackNavigationProp<RootStackParamList>;
 
@@ -90,7 +91,9 @@ const ChatScreen: React.FC = () => {
     }
 
     const previews: ConversationPreview[] = [];
+    const conversationMap = new Map<string, Message[]>();
     
+    // First, collect all messages and group them by conversation partners
     Object.entries(conversations).forEach(([conversationKey, messages]) => {
       if (!Array.isArray(messages) || messages.length === 0) return;
       
@@ -101,12 +104,36 @@ const ChatScreen: React.FC = () => {
         return timeB - timeA;
       });
       
+      // Group messages by other user to handle multiple conversations with same person
+      sortedMessages.forEach(message => {
+        const otherUserId = message.fromUserId === user.uid 
+          ? message.toUserId 
+          : message.fromUserId;
+        
+        if (!otherUserId) return;
+        
+        const key = otherUserId;
+        if (!conversationMap.has(key)) {
+          conversationMap.set(key, []);
+        }
+        conversationMap.get(key)!.push(message);
+      });
+    });
+    
+    // Create conversation previews from grouped messages
+    conversationMap.forEach((messages, otherUserId) => {
+      if (messages.length === 0) return;
+      
+      // Sort messages for this conversation by timestamp (newest first)
+      const sortedMessages = messages.sort((a, b) => {
+        const timeA = new Date(a.timestamp).getTime();
+        const timeB = new Date(b.timestamp).getTime();
+        return timeB - timeA;
+      });
+      
       const lastMessage = sortedMessages[0];
       
-      // Determine the other user
-      const otherUserId = lastMessage.fromUserId === user.uid 
-        ? lastMessage.toUserId 
-        : lastMessage.fromUserId;
+      // Determine the other user details
       const otherUserName = lastMessage.fromUserId === user.uid 
         ? lastMessage.toUserName 
         : lastMessage.fromUserName;
@@ -118,6 +145,9 @@ const ChatScreen: React.FC = () => {
       const unreadCount = sortedMessages.filter(
         msg => msg.toUserId === user.uid && !msg.isRead
       ).length;
+      
+      // Generate conversation key for navigation
+      const conversationKey = [user.uid, otherUserId].sort().join('_');
       
       previews.push({
         conversationKey,
@@ -149,31 +179,7 @@ const ChatScreen: React.FC = () => {
   };
 
   const formatTimestamp = (timestamp: any) => {
-    if (!timestamp) return 'Unknown';
-    try {
-      const date = new Date(timestamp);
-      if (isNaN(date.getTime())) {
-        return 'Unknown';
-      }
-      const now = new Date();
-      const diffMs = now.getTime() - date.getTime();
-      const diffHours = diffMs / (1000 * 60 * 60);
-      const diffDays = diffMs / (1000 * 60 * 60 * 24);
-      
-      if (diffHours < 1) {
-        const diffMins = Math.floor(diffMs / (1000 * 60));
-        return diffMins < 1 ? 'Just now' : `${diffMins}m ago`;
-      } else if (diffHours < 24) {
-        return `${Math.floor(diffHours)}h ago`;
-      } else if (diffDays < 7) {
-        return `${Math.floor(diffDays)}d ago`;
-      } else {
-        return date.toLocaleDateString();
-      }
-    } catch (error) {
-      console.warn('Error formatting timestamp:', error);
-      return 'Unknown';
-    }
+    return safeFormatRelativeTime(timestamp, 'Unknown');
   };
 
   const renderConversationItem = ({ item }: { item: ConversationPreview }) => (
@@ -192,7 +198,7 @@ const ChatScreen: React.FC = () => {
         {item.unreadCount > 0 && (
           <View style={styles.unreadBadge}>
             <Text style={styles.unreadText}>
-              {item.unreadCount > 99 ? '99+' : String(item.unreadCount)}
+              {item.unreadCount > 99 ? '99+' : item.unreadCount.toString()}
             </Text>
           </View>
         )}
@@ -231,7 +237,7 @@ const ChatScreen: React.FC = () => {
 
   if (!user) {
     return (
-      <SafeAreaView style={[styles.container, { paddingTop: insets.top }]}>
+      <SafeAreaView style={styles.container}>
         <StatusBar barStyle="dark-content" backgroundColor="#FFFFFF" />
         <View style={styles.emptyState}>
           <Ionicons name="log-in-outline" size={64} color="#D2B48C" />
@@ -247,7 +253,7 @@ const ChatScreen: React.FC = () => {
   const totalUnreadCount = conversationPreviews.reduce((sum, conv) => sum + conv.unreadCount, 0);
 
   return (
-    <SafeAreaView style={[styles.container, { paddingTop: insets.top }]}>
+    <SafeAreaView style={styles.container}>
       <StatusBar barStyle="dark-content" backgroundColor="#FFFFFF" />
       
       {/* Header */}

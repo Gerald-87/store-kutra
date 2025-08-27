@@ -19,6 +19,7 @@ import { Listing, ListingType } from '../types';
 import { collection, query, where, getDocs, orderBy } from 'firebase/firestore';
 import { db } from '../config/firebase';
 import AuthGuard from '../components/AuthGuard';
+import { safeFormatDate } from '../utils/textUtils';
 
 const MyItemsScreen: React.FC = () => {
   const navigation = useNavigation();
@@ -134,7 +135,7 @@ const MyItemsScreen: React.FC = () => {
           <View style={styles.priceContainer}>
             <Text style={styles.itemPrice}>
               {item.type === ListingType.RENT 
-                ? `K${item.price}/day` 
+                ? `K${item.price}/month` 
                 : `K${item.price}`
               }
             </Text>
@@ -154,7 +155,7 @@ const MyItemsScreen: React.FC = () => {
         
         <View style={styles.itemMeta}>
           <Text style={styles.itemDate}>
-            Posted {new Date(item.postedDate).toLocaleDateString()}
+            Posted {safeFormatDate(item.postedDate, 'Unknown date')}
           </Text>
           <Text style={styles.itemCategory}>
             {item.category}

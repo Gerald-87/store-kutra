@@ -428,7 +428,7 @@ const HomeScreen: React.FC = () => {
                 <Ionicons name="bag-outline" size={24} color="#374151" />
                 {totalItems > 0 && (
                   <View style={styles.cartBadge}>
-                    <Text style={styles.cartBadgeText}>{String(totalItems)}</Text>
+                    <Text style={styles.cartBadgeText}>{totalItems}</Text>
                   </View>
                 )}
               </View>
