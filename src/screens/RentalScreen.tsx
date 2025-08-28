@@ -519,10 +519,10 @@ const RentalScreen: React.FC = () => {
       />
       <View style={styles.listingContent}>
         <Text style={styles.listingTitle} numberOfLines={2}>
-          {item.title}
+          {typeof item.title === 'string' ? item.title : 'Untitled'}
         </Text>
         <Text style={styles.listingDescription} numberOfLines={2}>
-          {item.description}
+          {typeof item.description === 'string' ? item.description : 'No description'}
         </Text>
         
         {/* Enhanced property information */}
@@ -534,7 +534,9 @@ const RentalScreen: React.FC = () => {
               size={12} 
               color="#8B4513" 
             />
-            <Text style={styles.propertyType}>{item.propertyType}</Text>
+            <Text style={styles.propertyType}>
+              {typeof item.propertyType === 'string' ? item.propertyType : 'Property'}
+            </Text>
           </View>
         )}
         
@@ -543,7 +545,7 @@ const RentalScreen: React.FC = () => {
           <View style={styles.locationContainer}>
             <Ionicons name="location-outline" size={12} color="#8B7355" />
             <Text style={styles.locationText} numberOfLines={1}>
-              {item.location.city}
+              {typeof item.location.city === 'string' ? item.location.city : 'Location'}
             </Text>
             <TouchableOpacity 
               style={styles.mapButton}
@@ -558,7 +560,7 @@ const RentalScreen: React.FC = () => {
         )}
         
         <Text style={styles.price}>
-          K{item.price.toFixed(2)}/{item.rentalPeriod || 'month'}
+          K{typeof item.price === 'number' ? item.price.toFixed(2) : '0.00'}/{item.rentalPeriod || 'month'}
         </Text>
         
         {/* Contact info preview */}
@@ -572,13 +574,16 @@ const RentalScreen: React.FC = () => {
               color="#8B7355" 
             />
             <Text style={styles.contactMethod}>
-              {String(item.contactInfo.preferredContactMethod)}
+              {typeof item.contactInfo.preferredContactMethod === 'string' ? 
+                item.contactInfo.preferredContactMethod : 'Contact'}
             </Text>
           </View>
         )}
         
         <View style={styles.listingFooter}>
-          <Text style={styles.sellerName}>by {item.sellerName}</Text>
+          <Text style={styles.sellerName}>
+            by {typeof item.sellerName === 'string' ? item.sellerName : 'Unknown'}
+          </Text>
           <View style={styles.actionButtons}>
             <TouchableOpacity
               style={styles.chatButton}
@@ -615,10 +620,10 @@ const RentalScreen: React.FC = () => {
       />
       <View style={styles.listingContent}>
         <Text style={styles.listingTitle} numberOfLines={2}>
-          {item.title}
+          {typeof item.title === 'string' ? item.title : 'Untitled'}
         </Text>
         <Text style={styles.listingDescription} numberOfLines={2}>
-          {item.description}
+          {typeof item.description === 'string' ? item.description : 'No description'}
         </Text>
         
         {/* Enhanced property information for my listings */}
@@ -630,7 +635,9 @@ const RentalScreen: React.FC = () => {
               size={12} 
               color="#8B4513" 
             />
-            <Text style={styles.propertyType}>{item.propertyType}</Text>
+            <Text style={styles.propertyType}>
+              {typeof item.propertyType === 'string' ? item.propertyType : 'Property'}
+            </Text>
           </View>
         )}
         
@@ -639,7 +646,7 @@ const RentalScreen: React.FC = () => {
           <View style={styles.locationContainer}>
             <Ionicons name="location-outline" size={12} color="#8B7355" />
             <Text style={styles.locationText} numberOfLines={1}>
-              {item.location.address}
+              {typeof item.location.address === 'string' ? item.location.address : 'Location'}
             </Text>
             <TouchableOpacity 
               style={styles.mapButton}
@@ -654,7 +661,7 @@ const RentalScreen: React.FC = () => {
         )}
         
         <Text style={styles.price}>
-          K{item.price.toFixed(2)}/{item.rentalPeriod || 'month'}
+          K{typeof item.price === 'number' ? item.price.toFixed(2) : '0.00'}/{item.rentalPeriod || 'month'}
         </Text>
         
         {/* Views counter */}
