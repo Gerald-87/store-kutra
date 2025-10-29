@@ -7,6 +7,7 @@ buildscript {
     targetSdkVersion = 35
     ndkVersion = "27.0.12077973"
     kotlinVersion = "2.1.0"
+    kspVersion = "2.1.0-1.0.29"
   }
   repositories {
     google()
@@ -16,6 +17,7 @@ buildscript {
     classpath('com.android.tools.build:gradle:8.7.3')
     classpath('com.facebook.react:react-native-gradle-plugin')
     classpath("org.jetbrains.kotlin:kotlin-gradle-plugin:$kotlinVersion")
+    classpath("com.google.devtools.ksp:com.google.devtools.ksp.gradle.plugin:$kspVersion")
     classpath('com.google.gms:google-services:4.4.2')
   }
 }
@@ -41,6 +43,16 @@ allprojects {
     maven { 
       url 'https://repo1.maven.org/maven2/'
       allowInsecureProtocol = false
+    }
+  }
+  
+  configurations.all {
+    resolutionStrategy {
+      // Force Kotlin version consistency
+      force "org.jetbrains.kotlin:kotlin-stdlib:${rootProject.ext.kotlinVersion}"
+      force "org.jetbrains.kotlin:kotlin-stdlib-jdk8:${rootProject.ext.kotlinVersion}"
+      force "org.jetbrains.kotlin:kotlin-stdlib-common:${rootProject.ext.kotlinVersion}"
+      force "org.jetbrains.kotlin:kotlin-reflect:${rootProject.ext.kotlinVersion}"
     }
   }
 }
