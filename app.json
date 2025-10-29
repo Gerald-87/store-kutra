@@ -1,9 +1,45 @@
 {
   "expo": {
+    "name": "KUTRA",
+    "slug": "kutra",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "icon": "./assets/icon.png",
+    "userInterfaceStyle": "light",
+    "splash": {
+      "image": "./assets/splash.png",
+      "resizeMode": "contain",
+      "backgroundColor": "#ffffff"
+    },
+    "assetBundlePatterns": [
+      "**/*"
+    ],
+    "ios": {
+      "supportsTablet": true,
+      "bundleIdentifier": "com.gerald87.kutra",
+      "runtimeVersion": {
+        "policy": "appVersion"
+      }
+    },
+    "android": {
+      "adaptiveIcon": {
+        "foregroundImage": "./assets/adaptive-icon.png",
+        "backgroundColor": "#ffffff"
+      },
+      "package": "com.gerald87.kutra",
+      "runtimeVersion": "1.0.0"
+    },
+    "web": {
+      "favicon": "./assets/favicon.png"
+    },
     "extra": {
       "eas": {
-        "projectId": "11618bd9-422f-495e-8568-70aebed0cc37"
+        "projectId": "df61652f-bc98-4a9e-bc69-c6791e215a6e"
       }
+    },
+    "owner": "dev87",
+    "updates": {
+      "url": "https://u.expo.dev/df61652f-bc98-4a9e-bc69-c6791e215a6e"
     }
   }
 }
