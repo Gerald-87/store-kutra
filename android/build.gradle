@@ -5,7 +5,7 @@ buildscript {
     minSdkVersion = 24
     compileSdkVersion = 35
     targetSdkVersion = 35
-    ndkVersion = "27.1.12297006"
+    ndkVersion = "27.0.12077973"
     kotlinVersion = "2.1.0"
   }
   repositories {
@@ -30,14 +30,18 @@ def reactNativeAndroidDir = new File(
 
 allprojects {
   repositories {
+    google()
+    mavenCentral()
     maven {
       // All of React Native (JS, Obj-C sources, Android binaries) is installed from npm
       url(reactNativeAndroidDir)
     }
-
-    google()
-    mavenCentral()
     maven { url 'https://www.jitpack.io' }
+    // Ensure Maven Central is accessible
+    maven { 
+      url 'https://repo1.maven.org/maven2/'
+      allowInsecureProtocol = false
+    }
   }
 }
 

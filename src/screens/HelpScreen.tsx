@@ -107,7 +107,7 @@ const HelpScreen: React.FC = () => {
     {
       id: 'phone',
       title: 'Call Support',
-      subtitle: '+260 97 123 4567',
+      subtitle: '+260 770 852 820',
       icon: 'call-outline',
       color: '#8B4513',
       action: () => makePhoneCall(),
@@ -150,7 +150,7 @@ const HelpScreen: React.FC = () => {
   ];
 
   const openWhatsApp = () => {
-    const phoneNumber = '+260971234567';
+    const phoneNumber = '+260770852820';
     const message = `Hello KUTRA Support, I need help with my account. User ID: ${user?.uid?.slice(-8) || 'N/A'}`;
     const url = `whatsapp://send?phone=${phoneNumber}&text=${encodeURIComponent(message)}`;
     
@@ -179,7 +179,7 @@ const HelpScreen: React.FC = () => {
   };
 
   const makePhoneCall = () => {
-    const phoneNumber = '+260971234567';
+    const phoneNumber = '+260770852820';
     const url = `tel:${phoneNumber}`;
     
     Linking.openURL(url).catch(() => {
@@ -309,7 +309,7 @@ const HelpScreen: React.FC = () => {
           </Text>
           <TouchableOpacity style={styles.emergencyButton} onPress={makePhoneCall}>
             <Ionicons name="call" size={20} color="#FFFFFF" />
-            <Text style={styles.emergencyButtonText}>Call +260 97 123 4567</Text>
+            <Text style={styles.emergencyButtonText}>Call +260 770 852 820</Text>
           </TouchableOpacity>
         </View>
       </ScrollView>

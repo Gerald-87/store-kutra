@@ -135,7 +135,7 @@ android {
     
     packagingOptions {
         jniLibs {
-            useLegacyPackaging (findProperty('expo.useLegacyPackaging')?.toBoolean() ?: false)
+            useLegacyPackaging = (findProperty('expo.useLegacyPackaging')?.toBoolean() ?: false)
         }
         pickFirst '**/libc++_shared.so'
         pickFirst '**/libjsc.so'
@@ -158,7 +158,7 @@ android {
     }
     
     androidResources {
-        ignoreAssetsPattern '!.svn:!.git:!.ds_store:!*.scc:!CVS:!thumbs.db:!picasa.ini:!*~'
+        ignoreAssetsPattern = '!.svn:!.git:!.ds_store:!*.scc:!CVS:!thumbs.db:!picasa.ini:!*~'
     }
 
 }
